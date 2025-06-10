@@ -133,7 +133,7 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent"></div>
         <div className="relative max-w-6xl mx-auto text-center space-y-8">
           <div className="space-y-4">
-            <h1 className="text-5xl gradient-text md:text-6xl font-bold">
+            <h1 className="text-5xl gradient-text font-bold md:text-7xl">
               Kagura<span className="text-foreground">bachi</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
