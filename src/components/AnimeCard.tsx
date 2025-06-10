@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface AnimeCardProps {
   anime: {
@@ -8,25 +9,45 @@ interface AnimeCardProps {
     year?: number;
     synopsis?: string;
     genres: { name: string }[];
-    episodes?: number;
-    chapters?: number;
     images: {
       jpg: {
         large_image_url: string;
       };
     };
     type?: string;
+    published?: {
+      from: string;
+    };
   };
 }
 
 const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
+  const navigate = useNavigate();
+
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + '...';
   };
 
+  const handleCardClick = () => {
+    if (anime.type === 'Manga') {
+      navigate(`/manga/${anime.mal_id}`);
+    } else {
+      navigate(`/anime/${anime.mal_id}`);
+    }
+  };
+
+  const getYear = () => {
+    if (anime.year) return anime.year;
+    if (anime.published?.from) return new Date(anime.published.from).getFullYear();
+    return 'N/A';
+  };
+
   return (
-    <div className="anime-card group">
+    <div 
+      className="anime-card group cursor-pointer"
+      onClick={handleCardClick}
+    >
       <div className="relative h-80 overflow-hidden">
         <img
           src={anime.images.jpg.large_image_url}
@@ -37,7 +58,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
         
         <div className="absolute top-4 left-4">
           <span className="bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold">
-            {anime.year || 'N/A'}
+            {getYear()}
           </span>
         </div>
       </div>
@@ -66,24 +87,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
               Genre
             </h4>
             <div className="flex flex-wrap gap-1">
-              {anime.genres.slice(0, 3).map((genre, index) => (
+              {anime.genres.map((genre, index) => (
                 <span key={genre.name} className="genre-tag">
                   {genre.name}
-                  {index < anime.genres.slice(0, 3).length - 1 && index < 2 ? ' |' : ''}
+                  {index < anime.genres.length - 1 ? ' |' : ''}
                 </span>
               ))}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {anime.type === 'Manga' ? 'Chapters' : 'Episodes'}
-            </h4>
-            <div className="text-2xl font-bold text-foreground">
-              {anime.type === 'Manga' ? (anime.chapters || 'N/A') : (anime.episodes || 'N/A')}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
-                {anime.type === 'Manga' ? 'Chapters' : 'Episodes'}
-              </span>
             </div>
           </div>
         </div>

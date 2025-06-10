@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchBar from '../components/SearchBar';
 import GenreFilter from '../components/GenreFilter';
 import TrendingSection from '../components/TrendingSection';
 import LoadingSpinner from '../components/LoadingSpinner';
+import AnimeCard from '../components/AnimeCard';
 
-// Jikan API functions
+// API functions
 const fetchTrendingAnime = async () => {
   const response = await fetch('https://api.jikan.moe/v4/top/anime?limit=12');
   if (!response.ok) throw new Error('Failed to fetch trending anime');
@@ -25,16 +26,37 @@ const fetchTopManga = async () => {
   return response.json();
 };
 
-const POPULAR_GENRES = [
-  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 
-  'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural'
-];
+const fetchAnimeGenres = async () => {
+  const response = await fetch('https://api.jikan.moe/v4/genres/anime');
+  if (!response.ok) throw new Error('Failed to fetch anime genres');
+  return response.json();
+};
+
+const fetchMangaGenres = async () => {
+  const response = await fetch('https://api.jikan.moe/v4/genres/manga');
+  if (!response.ok) throw new Error('Failed to fetch manga genres');
+  return response.json();
+};
+
+const fetchAnimeByGenre = async (genreId: number) => {
+  const response = await fetch(`https://api.jikan.moe/v4/anime?genres=${genreId}&limit=16`);
+  if (!response.ok) throw new Error('Failed to fetch anime by genre');
+  return response.json();
+};
+
+const fetchMangaByGenre = async (genreId: number) => {
+  const response = await fetch(`https://api.jikan.moe/v4/manga?genres=${genreId}&limit=16`);
+  if (!response.ok) throw new Error('Failed to fetch manga by genre');
+  return response.json();
+};
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [genreResults, setGenreResults] = useState<any[]>([]);
+  const [isLoadingGenreResults, setIsLoadingGenreResults] = useState(false);
 
   // Fetch trending anime
   const { data: trendingData, isLoading: trendingLoading } = useQuery({
@@ -48,6 +70,17 @@ const Index = () => {
     queryFn: fetchTopManga,
   });
 
+  // Fetch genres
+  const { data: animeGenresData, isLoading: animeGenresLoading } = useQuery({
+    queryKey: ['anime-genres'],
+    queryFn: fetchAnimeGenres,
+  });
+
+  const { data: mangaGenresData, isLoading: mangaGenresLoading } = useQuery({
+    queryKey: ['manga-genres'],
+    queryFn: fetchMangaGenres,
+  });
+
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -57,6 +90,8 @@ const Index = () => {
 
     setIsSearching(true);
     setSearchQuery(query);
+    setSelectedGenres([]);
+    setGenreResults([]);
     
     try {
       const data = await fetchAnimeBySearch(query);
@@ -67,23 +102,46 @@ const Index = () => {
     }
   };
 
-  const handleGenreToggle = (genre: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genre) 
-        ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    );
+  const handleGenreToggle = async (genreId: number) => {
+    const newSelectedGenres = selectedGenres.includes(genreId)
+      ? selectedGenres.filter(id => id !== genreId)
+      : [genreId]; // Only allow one genre at a time for simplicity
+
+    setSelectedGenres(newSelectedGenres);
+    setIsSearching(false);
+    setSearchResults([]);
+
+    if (newSelectedGenres.length === 0) {
+      setGenreResults([]);
+      return;
+    }
+
+    setIsLoadingGenreResults(true);
+    
+    try {
+      // Fetch both anime and manga for the selected genre
+      const [animeData, mangaData] = await Promise.all([
+        fetchAnimeByGenre(genreId),
+        fetchMangaByGenre(genreId)
+      ]);
+      
+      const combinedResults = [
+        ...(animeData.data || []),
+        ...(mangaData.data || [])
+      ];
+      
+      setGenreResults(combinedResults);
+    } catch (error) {
+      console.error('Genre fetch failed:', error);
+      setGenreResults([]);
+    } finally {
+      setIsLoadingGenreResults(false);
+    }
   };
 
-  const filteredResults = searchResults.filter(anime => {
-    if (selectedGenres.length === 0) return true;
-    return anime.genres?.some((genre: any) => selectedGenres.includes(genre.name));
-  });
-
-  const filteredTrending = trendingData?.data?.filter((anime: any) => {
-    if (selectedGenres.length === 0) return true;
-    return anime.genres?.some((genre: any) => selectedGenres.includes(genre.name));
-  }) || [];
+  const animeGenres = animeGenresData?.data || [];
+  const mangaGenres = mangaGenresData?.data || [];
+  const isGenresLoading = animeGenresLoading || mangaGenresLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -107,10 +165,41 @@ const Index = () => {
       <div className="max-w-7xl mx-auto px-4 space-y-16 pb-20">
         {/* Genre Filter */}
         <GenreFilter 
-          genres={POPULAR_GENRES}
+          animeGenres={animeGenres}
+          mangaGenres={mangaGenres}
           selectedGenres={selectedGenres}
           onGenreToggle={handleGenreToggle}
+          isLoading={isGenresLoading}
         />
+
+        {/* Genre Results */}
+        {selectedGenres.length > 0 && (
+          <section className="space-y-6">
+            {isLoadingGenreResults ? (
+              <LoadingSpinner />
+            ) : (
+              <>
+                <div className="text-center space-y-2">
+                  <h2 className="text-3xl font-bold gradient-text">
+                    Genre Results
+                  </h2>
+                  <div className="w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
+                </div>
+                {genreResults.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                    {genreResults.map((item) => (
+                      <AnimeCard key={item.mal_id} anime={item} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground text-lg">No results found for the selected genre.</p>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
 
         {/* Search Results */}
         {isSearching && (
@@ -118,70 +207,10 @@ const Index = () => {
             <h2 className="text-3xl font-bold text-center gradient-text">
               Search Results for "{searchQuery}"
             </h2>
-            {filteredResults.length > 0 ? (
+            {searchResults.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {filteredResults.map((anime) => (
-                  <div key={anime.mal_id} className="anime-card group">
-                    <div className="relative h-80 overflow-hidden">
-                      <img
-                        src={anime.images.jpg.large_image_url}
-                        alt={anime.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter grayscale group-hover:grayscale-0"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
-                      
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold">
-                          {anime.year || 'N/A'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-6 space-y-4">
-                      <h3 className="text-xl font-bold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200">
-                        {anime.title}
-                      </h3>
-
-                      {anime.synopsis && (
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                            Synopsis
-                          </h4>
-                          <p className="text-sm text-foreground/80 leading-relaxed">
-                            {anime.synopsis.length > 150 ? anime.synopsis.slice(0, 150) + '...' : anime.synopsis}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="space-y-3">
-                        <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                            Genre
-                          </h4>
-                          <div className="flex flex-wrap gap-1">
-                            {anime.genres?.slice(0, 3).map((genre: any, index: number) => (
-                              <span key={genre.name} className="genre-tag">
-                                {genre.name}
-                                {index < Math.min(anime.genres.length - 1, 2) ? ' |' : ''}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                            Episodes
-                          </h4>
-                          <div className="text-2xl font-bold text-foreground">
-                            {anime.episodes || 'N/A'}
-                            <span className="text-sm font-normal text-muted-foreground ml-1">
-                              Episodes
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                {searchResults.map((anime) => (
+                  <AnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
             ) : (
@@ -192,14 +221,14 @@ const Index = () => {
           </section>
         )}
 
-        {/* Trending Anime */}
-        {!isSearching && (
+        {/* Trending Anime - only show if not searching or filtering */}
+        {!isSearching && selectedGenres.length === 0 && (
           <>
             {trendingLoading ? (
               <LoadingSpinner />
             ) : (
               <TrendingSection 
-                animes={filteredTrending}
+                animes={trendingData?.data || []}
                 title="Trending Anime"
               />
             )}
@@ -215,71 +244,8 @@ const Index = () => {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                  {mangaData.data.filter((manga: any) => {
-                    if (selectedGenres.length === 0) return true;
-                    return manga.genres?.some((genre: any) => selectedGenres.includes(genre.name));
-                  }).map((manga: any) => (
-                    <div key={manga.mal_id} className="anime-card group">
-                      <div className="relative h-80 overflow-hidden">
-                        <img
-                          src={manga.images.jpg.large_image_url}
-                          alt={manga.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter grayscale group-hover:grayscale-0"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
-                        
-                        <div className="absolute top-4 left-4">
-                          <span className="bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold">
-                            {manga.published?.from ? new Date(manga.published.from).getFullYear() : 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-6 space-y-4">
-                        <h3 className="text-xl font-bold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200">
-                          {manga.title}
-                        </h3>
-
-                        {manga.synopsis && (
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                              Synopsis
-                            </h4>
-                            <p className="text-sm text-foreground/80 leading-relaxed">
-                              {manga.synopsis.length > 150 ? manga.synopsis.slice(0, 150) + '...' : manga.synopsis}
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="space-y-3">
-                          <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                              Genre
-                            </h4>
-                            <div className="flex flex-wrap gap-1">
-                              {manga.genres?.slice(0, 3).map((genre: any, index: number) => (
-                                <span key={genre.name} className="genre-tag">
-                                  {genre.name}
-                                  {index < Math.min(manga.genres.length - 1, 2) ? ' |' : ''}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                              Chapters
-                            </h4>
-                            <div className="text-2xl font-bold text-foreground">
-                              {manga.chapters || 'N/A'}
-                              <span className="text-sm font-normal text-muted-foreground ml-1">
-                                Chapters
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  {mangaData.data.map((manga: any) => (
+                    <AnimeCard key={manga.mal_id} anime={manga} />
                   ))}
                 </div>
               </section>
