@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Genre {
   mal_id: number;
@@ -21,6 +22,8 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
   onGenreToggle, 
   isLoading = false 
 }) => {
+  const [showAllGenres, setShowAllGenres] = useState(false);
+
   // Combine and deduplicate genres
   const allGenres = [...animeGenres, ...mangaGenres].reduce((acc, genre) => {
     if (!acc.find(g => g.mal_id === genre.mal_id)) {
@@ -29,12 +32,14 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
     return acc;
   }, [] as Genre[]).sort((a, b) => a.name.localeCompare(b.name));
 
+  const displayedGenres = showAllGenres ? allGenres : allGenres.slice(0, 12);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
         <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 20 }).map((_, index) => (
+          {Array.from({ length: 12 }).map((_, index) => (
             <div key={index} className="h-10 w-20 bg-secondary animate-pulse rounded-lg" />
           ))}
         </div>
@@ -44,9 +49,28 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
+        {allGenres.length > 12 && (
+          <button
+            onClick={() => setShowAllGenres(!showAllGenres)}
+            className="flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          >
+            {showAllGenres ? (
+              <>
+                Show Less <ChevronUp className="w-4 h-4" />
+              </>
+            ) : (
+              <>
+                Show More <ChevronDown className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        )}
+      </div>
+      
       <div className="flex flex-wrap gap-2">
-        {allGenres.map((genre) => (
+        {displayedGenres.map((genre) => (
           <button
             key={genre.mal_id}
             onClick={() => onGenreToggle(genre.mal_id)}

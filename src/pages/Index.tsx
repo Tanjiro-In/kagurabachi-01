@@ -5,7 +5,9 @@ import SearchBar from '../components/SearchBar';
 import GenreFilter from '../components/GenreFilter';
 import TrendingSection from '../components/TrendingSection';
 import LoadingSpinner from '../components/LoadingSpinner';
-import AnimeCard from '../components/AnimeCard';
+import AIRecommendations from '../components/AIRecommendations';
+import SearchResults from '../components/SearchResults';
+import GenreResults from '../components/GenreResults';
 
 // API functions
 const fetchTrendingAnime = async () => {
@@ -17,6 +19,12 @@ const fetchTrendingAnime = async () => {
 const fetchAnimeBySearch = async (query: string) => {
   const response = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=12`);
   if (!response.ok) throw new Error('Failed to search anime');
+  return response.json();
+};
+
+const fetchMangaBySearch = async (query: string) => {
+  const response = await fetch(`https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&limit=12`);
+  if (!response.ok) throw new Error('Failed to search manga');
   return response.json();
 };
 
@@ -38,24 +46,29 @@ const fetchMangaGenres = async () => {
   return response.json();
 };
 
-const fetchAnimeByGenre = async (genreId: number) => {
-  const response = await fetch(`https://api.jikan.moe/v4/anime?genres=${genreId}&limit=16`);
-  if (!response.ok) throw new Error('Failed to fetch anime by genre');
+const fetchAnimeByGenreAndYear = async (genreId: number, yearRange: [number, number]) => {
+  const [startYear, endYear] = yearRange;
+  const response = await fetch(`https://api.jikan.moe/v4/anime?genres=${genreId}&start_date=${startYear}-01-01&end_date=${endYear}-12-31&limit=16`);
+  if (!response.ok) throw new Error('Failed to fetch anime by genre and year');
   return response.json();
 };
 
-const fetchMangaByGenre = async (genreId: number) => {
-  const response = await fetch(`https://api.jikan.moe/v4/manga?genres=${genreId}&limit=16`);
-  if (!response.ok) throw new Error('Failed to fetch manga by genre');
+const fetchMangaByGenreAndYear = async (genreId: number, yearRange: [number, number]) => {
+  const [startYear, endYear] = yearRange;
+  const response = await fetch(`https://api.jikan.moe/v4/manga?genres=${genreId}&start_date=${startYear}-01-01&end_date=${endYear}-12-31&limit=16`);
+  if (!response.ok) throw new Error('Failed to fetch manga by genre and year');
   return response.json();
 };
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedYearRange, setSelectedYearRange] = useState<[number, number]>([1950, new Date().getFullYear()]);
+  const [animeSearchResults, setAnimeSearchResults] = useState<any[]>([]);
+  const [mangaSearchResults, setMangaSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [genreResults, setGenreResults] = useState<any[]>([]);
+  const [animeGenreResults, setAnimeGenreResults] = useState<any[]>([]);
+  const [mangaGenreResults, setMangaGenreResults] = useState<any[]>([]);
   const [isLoadingGenreResults, setIsLoadingGenreResults] = useState(false);
 
   // Fetch trending anime
@@ -64,13 +77,11 @@ const Index = () => {
     queryFn: fetchTrendingAnime,
   });
 
-  // Fetch top manga
   const { data: mangaData, isLoading: mangaLoading } = useQuery({
     queryKey: ['top-manga'],
     queryFn: fetchTopManga,
   });
 
-  // Fetch genres
   const { data: animeGenresData, isLoading: animeGenresLoading } = useQuery({
     queryKey: ['anime-genres'],
     queryFn: fetchAnimeGenres,
@@ -83,7 +94,8 @@ const Index = () => {
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
-      setSearchResults([]);
+      setAnimeSearchResults([]);
+      setMangaSearchResults([]);
       setIsSearching(false);
       return;
     }
@@ -91,49 +103,66 @@ const Index = () => {
     setIsSearching(true);
     setSearchQuery(query);
     setSelectedGenres([]);
-    setGenreResults([]);
+    setAnimeGenreResults([]);
+    setMangaGenreResults([]);
     
     try {
-      const data = await fetchAnimeBySearch(query);
-      setSearchResults(data.data || []);
+      const [animeData, mangaData] = await Promise.all([
+        fetchAnimeBySearch(query),
+        fetchMangaBySearch(query)
+      ]);
+      
+      setAnimeSearchResults(animeData.data || []);
+      setMangaSearchResults(mangaData.data || []);
     } catch (error) {
       console.error('Search failed:', error);
-      setSearchResults([]);
+      setAnimeSearchResults([]);
+      setMangaSearchResults([]);
     }
   };
 
   const handleGenreToggle = async (genreId: number) => {
     const newSelectedGenres = selectedGenres.includes(genreId)
       ? selectedGenres.filter(id => id !== genreId)
-      : [genreId]; // Only allow one genre at a time for simplicity
+      : [genreId];
 
     setSelectedGenres(newSelectedGenres);
     setIsSearching(false);
-    setSearchResults([]);
+    setAnimeSearchResults([]);
+    setMangaSearchResults([]);
 
     if (newSelectedGenres.length === 0) {
-      setGenreResults([]);
+      setAnimeGenreResults([]);
+      setMangaGenreResults([]);
       return;
     }
 
+    await fetchGenreResults(genreId, selectedYearRange);
+  };
+
+  const handleYearRangeChange = async (yearRange: [number, number]) => {
+    setSelectedYearRange(yearRange);
+    
+    if (selectedGenres.length > 0) {
+      await fetchGenreResults(selectedGenres[0], yearRange);
+    }
+  };
+
+  const fetchGenreResults = async (genreId: number, yearRange: [number, number]) => {
     setIsLoadingGenreResults(true);
     
     try {
-      // Fetch both anime and manga for the selected genre
       const [animeData, mangaData] = await Promise.all([
-        fetchAnimeByGenre(genreId),
-        fetchMangaByGenre(genreId)
+        fetchAnimeByGenreAndYear(genreId, yearRange),
+        fetchMangaByGenreAndYear(genreId, yearRange)
       ]);
       
-      const combinedResults = [
-        ...(animeData.data || []),
-        ...(mangaData.data || [])
-      ];
-      
-      setGenreResults(combinedResults);
+      setAnimeGenreResults(animeData.data || []);
+      setMangaGenreResults(mangaData.data || []);
     } catch (error) {
       console.error('Genre fetch failed:', error);
-      setGenreResults([]);
+      setAnimeGenreResults([]);
+      setMangaGenreResults([]);
     } finally {
       setIsLoadingGenreResults(false);
     }
@@ -158,7 +187,14 @@ const Index = () => {
             </p>
           </div>
           
-          <SearchBar onSearch={handleSearch} />
+          <div className="flex flex-col lg:flex-row gap-8 items-start">
+            <div className="flex-1">
+              <SearchBar onSearch={handleSearch} />
+            </div>
+            <div className="w-full lg:w-96">
+              <AIRecommendations selectedGenres={selectedGenres} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -174,51 +210,22 @@ const Index = () => {
 
         {/* Genre Results */}
         {selectedGenres.length > 0 && (
-          <section className="space-y-6">
-            {isLoadingGenreResults ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold gradient-text">
-                    Genre Results
-                  </h2>
-                  <div className="w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
-                </div>
-                {genreResults.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    {genreResults.map((item) => (
-                      <AnimeCard key={item.mal_id} anime={item} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground text-lg">No results found for the selected genre.</p>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
+          <GenreResults
+            animeResults={animeGenreResults}
+            mangaResults={mangaGenreResults}
+            selectedYearRange={selectedYearRange}
+            onYearRangeChange={handleYearRangeChange}
+            isLoading={isLoadingGenreResults}
+          />
         )}
 
         {/* Search Results */}
         {isSearching && (
-          <section className="space-y-6">
-            <h2 className="text-3xl font-bold text-center gradient-text">
-              Search Results for "{searchQuery}"
-            </h2>
-            {searchResults.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {searchResults.map((anime) => (
-                  <AnimeCard key={anime.mal_id} anime={anime} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-lg">No anime found matching your search criteria.</p>
-              </div>
-            )}
-          </section>
+          <SearchResults
+            animeResults={animeSearchResults}
+            mangaResults={mangaSearchResults}
+            searchQuery={searchQuery}
+          />
         )}
 
         {/* Trending Anime - only show if not searching or filtering */}
