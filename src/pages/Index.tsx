@@ -121,8 +121,6 @@ const Index = () => {
     }
     setIsSearchingAnime(true);
     setAnimeSearchQuery(query);
-    setSelectedGenres([]);
-    setGenreResults([]);
     try {
       const data = await searchAnimeAniList(query);
       setAnimeSearchResults(data.map(convertAniListToJikan));
@@ -140,8 +138,6 @@ const Index = () => {
     }
     setIsSearchingManga(true);
     setMangaSearchQuery(query);
-    setSelectedGenres([]);
-    setGenreResults([]);
     try {
       const data = await searchMangaAniList(query);
       setMangaSearchResults(data.map(convertAniListToJikan));
