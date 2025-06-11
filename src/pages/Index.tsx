@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchBar from '../components/SearchBar';
 import MangaSearchBar from '../components/MangaSearchBar';
-import GenreFilter from '../components/GenreFilter';
+import AIRecommendations from '../components/AIRecommendations';
+import RecommendationSections from '../components/RecommendationSections';
 import TrendingSection from '../components/TrendingSection';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AnimeCard from '../components/AnimeCard';
@@ -14,7 +15,7 @@ import {
 } from '../services/anilistApi';
 import { convertAniListToJikan } from '../utils/dataConverter';
 
-// Keep Jikan API for genres and fallback
+// Keep Jikan API for genres and AI recommendations
 const fetchAnimeGenres = async () => {
   const response = await fetch('https://api.jikan.moe/v4/genres/anime');
   if (!response.ok) throw new Error('Failed to fetch anime genres');
@@ -27,28 +28,49 @@ const fetchMangaGenres = async () => {
   return response.json();
 };
 
-const fetchAnimeByGenre = async (genreId: number) => {
-  const response = await fetch(`https://api.jikan.moe/v4/anime?genres=${genreId}&limit=16`);
-  if (!response.ok) throw new Error('Failed to fetch anime by genre');
+const fetchAnimeByGenres = async (genres: string[], yearRange: string) => {
+  const genreQuery = genres.join(',');
+  let url = `https://api.jikan.moe/v4/anime?genres=${genreQuery}&limit=8&order_by=score&sort=desc`;
+  
+  if (yearRange !== 'any') {
+    const [startYear, endYear] = yearRange.split('-');
+    if (startYear && endYear) {
+      url += `&start_date=${startYear}-01-01&end_date=${endYear}-12-31`;
+    }
+  }
+  
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch anime recommendations');
   return response.json();
 };
 
-const fetchMangaByGenre = async (genreId: number) => {
-  const response = await fetch(`https://api.jikan.moe/v4/manga?genres=${genreId}&limit=16`);
-  if (!response.ok) throw new Error('Failed to fetch manga by genre');
+const fetchMangaByGenres = async (genres: string[], yearRange: string) => {
+  const genreQuery = genres.join(',');
+  let url = `https://api.jikan.moe/v4/manga?genres=${genreQuery}&limit=8&order_by=score&sort=desc`;
+  
+  if (yearRange !== 'any') {
+    const [startYear, endYear] = yearRange.split('-');
+    if (startYear && endYear) {
+      url += `&start_date=${startYear}-01-01&end_date=${endYear}-12-31`;
+    }
+  }
+  
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Failed to fetch manga recommendations');
   return response.json();
 };
 
 const Index = () => {
   const [animeSearchQuery, setAnimeSearchQuery] = useState('');
   const [mangaSearchQuery, setMangaSearchQuery] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [animeSearchResults, setAnimeSearchResults] = useState<any[]>([]);
   const [mangaSearchResults, setMangaSearchResults] = useState<any[]>([]);
   const [isSearchingAnime, setIsSearchingAnime] = useState(false);
   const [isSearchingManga, setIsSearchingManga] = useState(false);
-  const [genreResults, setGenreResults] = useState<any[]>([]);
-  const [isLoadingGenreResults, setIsLoadingGenreResults] = useState(false);
+  const [animeRecommendations, setAnimeRecommendations] = useState<any[]>([]);
+  const [mangaRecommendations, setMangaRecommendations] = useState<any[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [hasRecommendations, setHasRecommendations] = useState(false);
 
   // Fetch trending anime from AniList
   const {
@@ -129,35 +151,28 @@ const Index = () => {
     }
   };
 
-  const handleGenreToggle = async (genreId: number) => {
-    const newSelectedGenres = selectedGenres.includes(genreId) 
-      ? selectedGenres.filter(id => id !== genreId) 
-      : [genreId];
-
-    setSelectedGenres(newSelectedGenres);
+  const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
+    setIsLoadingRecommendations(true);
     setIsSearchingAnime(false);
     setIsSearchingManga(false);
     setAnimeSearchResults([]);
     setMangaSearchResults([]);
 
-    if (newSelectedGenres.length === 0) {
-      setGenreResults([]);
-      return;
-    }
-
-    setIsLoadingGenreResults(true);
     try {
       const [animeData, mangaData] = await Promise.all([
-        fetchAnimeByGenre(genreId), 
-        fetchMangaByGenre(genreId)
+        fetchAnimeByGenres(genres, yearRange),
+        fetchMangaByGenres(genres, yearRange)
       ]);
-      const combinedResults = [...(animeData.data || []), ...(mangaData.data || [])];
-      setGenreResults(combinedResults);
+      
+      setAnimeRecommendations(animeData.data || []);
+      setMangaRecommendations(mangaData.data || []);
+      setHasRecommendations(true);
     } catch (error) {
-      console.error('Genre fetch failed:', error);
-      setGenreResults([]);
+      console.error('Recommendation fetch failed:', error);
+      setAnimeRecommendations([]);
+      setMangaRecommendations([]);
     } finally {
-      setIsLoadingGenreResults(false);
+      setIsLoadingRecommendations(false);
     }
   };
 
@@ -176,7 +191,7 @@ const Index = () => {
               Kagura<span className="text-foreground">bachi</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Discover the best anime and manga recommendations with real-time trending data
+              Discover the best anime and manga recommendations with AI-powered suggestions
             </p>
           </div>
           
@@ -195,40 +210,21 @@ const Index = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 space-y-16 pb-20">
-        {/* Genre Filter */}
-        <GenreFilter 
+        {/* AI Recommendations */}
+        <AIRecommendations 
           animeGenres={animeGenres} 
           mangaGenres={mangaGenres} 
-          selectedGenres={selectedGenres} 
-          onGenreToggle={handleGenreToggle} 
+          onRecommendationRequest={handleRecommendationRequest} 
           isLoading={isGenresLoading} 
         />
 
-        {/* Genre Results */}
-        {selectedGenres.length > 0 && (
-          <section className="space-y-6">
-            {isLoadingGenreResults ? (
-              <LoadingSpinner />
-            ) : (
-              <>
-                <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold gradient-text">Genre Results</h2>
-                  <div className="w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
-                </div>
-                {genreResults.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    {genreResults.map(item => (
-                      <AnimeCard key={item.mal_id} anime={item} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground text-lg">No results found for the selected genre.</p>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
+        {/* AI Recommendation Results */}
+        {hasRecommendations && (
+          <RecommendationSections
+            animeRecommendations={animeRecommendations}
+            mangaRecommendations={mangaRecommendations}
+            isLoading={isLoadingRecommendations}
+          />
         )}
 
         {/* Anime Search Results */}
@@ -271,8 +267,8 @@ const Index = () => {
           </section>
         )}
 
-        {/* Trending Content - only show if not searching or filtering */}
-        {!isSearchingAnime && !isSearchingManga && selectedGenres.length === 0 && (
+        {/* Trending Content - only show if not searching or getting recommendations */}
+        {!isSearchingAnime && !isSearchingManga && !hasRecommendations && (
           <>
             {/* Trending Anime */}
             {trendingAnimeLoading ? (
