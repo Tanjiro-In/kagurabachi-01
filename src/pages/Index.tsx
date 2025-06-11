@@ -28,8 +28,8 @@ const fetchMangaGenres = async () => {
   return response.json();
 };
 
-const fetchAnimeByGenres = async (genres: string[], yearRange: string) => {
-  const genreQuery = genres.join(',');
+const fetchAnimeByGenres = async (genreIds: string[], yearRange: string) => {
+  const genreQuery = genreIds.join(',');
   let url = `https://api.jikan.moe/v4/anime?genres=${genreQuery}&limit=8&order_by=score&sort=desc`;
   
   if (yearRange !== 'any') {
@@ -39,13 +39,16 @@ const fetchAnimeByGenres = async (genres: string[], yearRange: string) => {
     }
   }
   
+  console.log('Fetching anime with URL:', url);
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch anime recommendations');
-  return response.json();
+  const data = await response.json();
+  console.log('Anime recommendations response:', data);
+  return data;
 };
 
-const fetchMangaByGenres = async (genres: string[], yearRange: string) => {
-  const genreQuery = genres.join(',');
+const fetchMangaByGenres = async (genreIds: string[], yearRange: string) => {
+  const genreQuery = genreIds.join(',');
   let url = `https://api.jikan.moe/v4/manga?genres=${genreQuery}&limit=8&order_by=score&sort=desc`;
   
   if (yearRange !== 'any') {
@@ -55,9 +58,12 @@ const fetchMangaByGenres = async (genres: string[], yearRange: string) => {
     }
   }
   
+  console.log('Fetching manga with URL:', url);
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch manga recommendations');
-  return response.json();
+  const data = await response.json();
+  console.log('Manga recommendations response:', data);
+  return data;
 };
 
 const Index = () => {
@@ -148,6 +154,7 @@ const Index = () => {
   };
 
   const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
+    console.log('Starting recommendation request with genres:', genres, 'and year:', yearRange);
     setIsLoadingRecommendations(true);
     setIsSearchingAnime(false);
     setIsSearchingManga(false);
@@ -155,10 +162,38 @@ const Index = () => {
     setMangaSearchResults([]);
 
     try {
+      // Map genre names to IDs
+      const animeGenres = animeGenresData?.data || [];
+      const mangaGenres = mangaGenresData?.data || [];
+      
+      const animeGenreIds = genres.map(genreName => {
+        const genre = animeGenres.find(g => g.name === genreName);
+        return genre ? genre.mal_id.toString() : null;
+      }).filter(Boolean);
+      
+      const mangaGenreIds = genres.map(genreName => {
+        const genre = mangaGenres.find(g => g.name === genreName);
+        return genre ? genre.mal_id.toString() : null;
+      }).filter(Boolean);
+      
+      console.log('Mapped anime genre IDs:', animeGenreIds);
+      console.log('Mapped manga genre IDs:', mangaGenreIds);
+      
+      if (animeGenreIds.length === 0 && mangaGenreIds.length === 0) {
+        console.error('No valid genre IDs found');
+        setAnimeRecommendations([]);
+        setMangaRecommendations([]);
+        setHasRecommendations(true);
+        return;
+      }
+      
       const [animeData, mangaData] = await Promise.all([
-        fetchAnimeByGenres(genres, yearRange),
-        fetchMangaByGenres(genres, yearRange)
+        animeGenreIds.length > 0 ? fetchAnimeByGenres(animeGenreIds, yearRange) : { data: [] },
+        mangaGenreIds.length > 0 ? fetchMangaByGenres(mangaGenreIds, yearRange) : { data: [] }
       ]);
+      
+      console.log('Final anime recommendations:', animeData.data);
+      console.log('Final manga recommendations:', mangaData.data);
       
       setAnimeRecommendations(animeData.data || []);
       setMangaRecommendations(mangaData.data || []);
@@ -167,6 +202,7 @@ const Index = () => {
       console.error('Recommendation fetch failed:', error);
       setAnimeRecommendations([]);
       setMangaRecommendations([]);
+      setHasRecommendations(true);
     } finally {
       setIsLoadingRecommendations(false);
     }
@@ -298,3 +334,5 @@ const Index = () => {
 };
 
 export default Index;
+
+}
