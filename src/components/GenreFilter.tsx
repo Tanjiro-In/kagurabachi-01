@@ -14,6 +14,12 @@ interface GenreFilterProps {
   isLoading?: boolean;
 }
 
+// Most popular/watched genres based on MAL data
+const POPULAR_GENRES = [
+  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Romance', 
+  'Sci-Fi', 'Slice of Life', 'Supernatural', 'Thriller', 'Mystery', 'Horror'
+];
+
 const GenreFilter: React.FC<GenreFilterProps> = ({ 
   animeGenres, 
   mangaGenres, 
@@ -21,20 +27,25 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
   onGenreToggle, 
   isLoading = false 
 }) => {
-  // Combine and deduplicate genres
+  // Combine and filter to show only popular genres
   const allGenres = [...animeGenres, ...mangaGenres].reduce((acc, genre) => {
-    if (!acc.find(g => g.mal_id === genre.mal_id)) {
+    if (!acc.find(g => g.mal_id === genre.mal_id) && POPULAR_GENRES.includes(genre.name)) {
       acc.push(genre);
     }
     return acc;
-  }, [] as Genre[]).sort((a, b) => a.name.localeCompare(b.name));
+  }, [] as Genre[]).sort((a, b) => {
+    // Sort by popularity order
+    const aIndex = POPULAR_GENRES.indexOf(a.name);
+    const bIndex = POPULAR_GENRES.indexOf(b.name);
+    return aIndex - bIndex;
+  });
 
   if (isLoading) {
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
         <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 20 }).map((_, index) => (
+          {Array.from({ length: 12 }).map((_, index) => (
             <div key={index} className="h-10 w-20 bg-secondary animate-pulse rounded-lg" />
           ))}
         </div>
@@ -44,7 +55,7 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Filter by Genre</h3>
+      <h3 className="text-lg font-semibold text-foreground">Popular Genres</h3>
       <div className="flex flex-wrap gap-2">
         {allGenres.map((genre) => (
           <button
