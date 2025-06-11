@@ -45,9 +45,9 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
     return 'N/A';
   };
 
-  // Ensure we have the highest quality image available
+  // Get the highest quality image available
   const getHighQualityImage = () => {
-    return anime.images.jpg.large_image_url || anime.images.jpg.image_url;
+    return anime.images.jpg.large_image_url;
   };
 
   return (
