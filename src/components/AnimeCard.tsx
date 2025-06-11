@@ -30,10 +30,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
   };
 
   const handleCardClick = () => {
-    if (anime.type === 'Manga') {
-      navigate(`/manga/${anime.mal_id}`);
+    // Use the mal_id for navigation
+    const id = anime.mal_id;
+    if (anime.type === 'Manga' || anime.type === 'MANGA') {
+      navigate(`/manga/${id}`);
     } else {
-      navigate(`/anime/${anime.mal_id}`);
+      navigate(`/anime/${id}`);
     }
   };
 
@@ -43,6 +45,11 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
     return 'N/A';
   };
 
+  // Ensure we have the highest quality image available
+  const getHighQualityImage = () => {
+    return anime.images.jpg.large_image_url || anime.images.jpg.image_url;
+  };
+
   return (
     <div 
       className="anime-card group cursor-pointer"
@@ -50,9 +57,14 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
     >
       <div className="relative h-80 overflow-hidden">
         <img
-          src={anime.images.jpg.large_image_url}
+          src={getHighQualityImage()}
           alt={anime.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter grayscale group-hover:grayscale-0"
+          loading="lazy"
+          onError={(e) => {
+            // Fallback to a placeholder if image fails to load
+            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x400/1a1a1a/ffffff?text=No+Image';
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
         

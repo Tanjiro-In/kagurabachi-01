@@ -8,15 +8,48 @@ import ImageGallery from '../components/ImageGallery';
 import DetailedInfo from '../components/DetailedInfo';
 
 const fetchMangaDetails = async (id: string) => {
-  const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`);
-  if (!response.ok) throw new Error('Failed to fetch manga details');
-  return response.json();
+  // First try to fetch from Jikan with the provided ID
+  try {
+    const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`);
+    if (response.ok) {
+      return response.json();
+    }
+  } catch (error) {
+    console.log('Jikan API failed, trying alternative approach');
+  }
+
+  // If that fails, try to search for the manga by ID or title
+  try {
+    const searchResponse = await fetch(`https://api.jikan.moe/v4/manga?q=${id}&limit=1`);
+    if (searchResponse.ok) {
+      const searchData = await searchResponse.json();
+      if (searchData.data && searchData.data.length > 0) {
+        const mangaId = searchData.data[0].mal_id;
+        const detailResponse = await fetch(`https://api.jikan.moe/v4/manga/${mangaId}/full`);
+        if (detailResponse.ok) {
+          return detailResponse.json();
+        }
+      }
+    }
+  } catch (error) {
+    console.log('Alternative search failed');
+  }
+
+  throw new Error('Failed to fetch manga details');
 };
 
 const fetchMangaPictures = async (id: string) => {
-  const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/pictures`);
-  if (!response.ok) throw new Error('Failed to fetch manga pictures');
-  return response.json();
+  try {
+    const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/pictures`);
+    if (response.ok) {
+      return response.json();
+    }
+  } catch (error) {
+    console.log('Failed to fetch pictures');
+  }
+  
+  // Return empty data if pictures can't be fetched
+  return { data: [] };
 };
 
 const MangaDetailPage = () => {
@@ -27,12 +60,14 @@ const MangaDetailPage = () => {
     queryKey: ['manga-details', id],
     queryFn: () => fetchMangaDetails(id!),
     enabled: !!id,
+    retry: 2,
   });
 
   const { data: picturesData, isLoading: picturesLoading } = useQuery({
     queryKey: ['manga-pictures', id],
     queryFn: () => fetchMangaPictures(id!),
     enabled: !!id,
+    retry: 1,
   });
 
   if (mangaLoading) {
@@ -48,6 +83,9 @@ const MangaDetailPage = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold text-foreground">Manga not found</h2>
+          <p className="text-muted-foreground">
+            This manga might not be available in our database or the ID might be incorrect.
+          </p>
           <button 
             onClick={() => navigate('/')}
             className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"

@@ -1,14 +1,15 @@
-
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 
 export interface AniListAnime {
   id: number;
+  idMal?: number;
   title: {
     romaji: string;
     english?: string;
     native: string;
   };
   coverImage: {
+    extraLarge: string;
     large: string;
     medium: string;
   };
@@ -24,12 +25,14 @@ export interface AniListAnime {
 
 export interface AniListManga {
   id: number;
+  idMal?: number;
   title: {
     romaji: string;
     english?: string;
     native: string;
   };
   coverImage: {
+    extraLarge: string;
     large: string;
     medium: string;
   };
@@ -48,12 +51,14 @@ const TRENDING_ANIME_QUERY = `
     Page(page: 1, perPage: 12) {
       media(type: ANIME, sort: TRENDING_DESC) {
         id
+        idMal
         title {
           romaji
           english
           native
         }
         coverImage {
+          extraLarge
           large
           medium
         }
@@ -75,12 +80,14 @@ const TRENDING_MANGA_QUERY = `
     Page(page: 1, perPage: 12) {
       media(type: MANGA, sort: TRENDING_DESC) {
         id
+        idMal
         title {
           romaji
           english
           native
         }
         coverImage {
+          extraLarge
           large
           medium
         }
@@ -102,12 +109,14 @@ const SEARCH_ANIME_QUERY = `
     Page(page: 1, perPage: 12) {
       media(type: ANIME, search: $search) {
         id
+        idMal
         title {
           romaji
           english
           native
         }
         coverImage {
+          extraLarge
           large
           medium
         }
@@ -129,12 +138,14 @@ const SEARCH_MANGA_QUERY = `
     Page(page: 1, perPage: 12) {
       media(type: MANGA, search: $search) {
         id
+        idMal
         title {
           romaji
           english
           native
         }
         coverImage {
+          extraLarge
           large
           medium
         }
