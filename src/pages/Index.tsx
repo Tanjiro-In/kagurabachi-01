@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import MangaSearchBar from '../components/MangaSearchBar';
 import AIRecommendations from '../components/AIRecommendations';
@@ -11,62 +12,24 @@ import {
   fetchTrendingAnimeAniList, 
   fetchTrendingMangaAniList, 
   searchAnimeAniList, 
-  searchMangaAniList 
+  searchMangaAniList,
+  fetchAnimeByGenresAniList,
+  fetchMangaByGenresAniList
 } from '../services/anilistApi';
 import { convertAniListToJikan } from '../utils/dataConverter';
 
-// Keep Jikan API for genres and AI recommendations
-const fetchAnimeGenres = async () => {
-  const response = await fetch('https://api.jikan.moe/v4/genres/anime');
-  if (!response.ok) throw new Error('Failed to fetch anime genres');
-  return response.json();
-};
+// Keep some genres data for the AI recommendations component
+const POPULAR_GENRES = [
+  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Romance', 
+  'Sci-Fi', 'Slice of Life', 'Supernatural', 'Thriller', 'Mystery', 'Horror'
+];
 
-const fetchMangaGenres = async () => {
-  const response = await fetch('https://api.jikan.moe/v4/genres/manga');
-  if (!response.ok) throw new Error('Failed to fetch manga genres');
-  return response.json();
-};
-
-const fetchAnimeByGenres = async (genreIds: string[], yearRange: string) => {
-  const genreQuery = genreIds.join(',');
-  let url = `https://api.jikan.moe/v4/anime?genres=${genreQuery}&limit=8&order_by=score&sort=desc`;
-  
-  if (yearRange !== 'any') {
-    const [startYear, endYear] = yearRange.split('-');
-    if (startYear && endYear) {
-      url += `&start_date=${startYear}-01-01&end_date=${endYear}-12-31`;
-    }
-  }
-  
-  console.log('Fetching anime with URL:', url);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to fetch anime recommendations');
-  const data = await response.json();
-  console.log('Anime recommendations response:', data);
-  return data;
-};
-
-const fetchMangaByGenres = async (genreIds: string[], yearRange: string) => {
-  const genreQuery = genreIds.join(',');
-  let url = `https://api.jikan.moe/v4/manga?genres=${genreQuery}&limit=8&order_by=score&sort=desc`;
-  
-  if (yearRange !== 'any') {
-    const [startYear, endYear] = yearRange.split('-');
-    if (startYear && endYear) {
-      url += `&start_date=${startYear}-01-01&end_date=${endYear}-12-31`;
-    }
-  }
-  
-  console.log('Fetching manga with URL:', url);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to fetch manga recommendations');
-  const data = await response.json();
-  console.log('Manga recommendations response:', data);
-  return data;
+const createMockGenres = () => {
+  return POPULAR_GENRES.map((name, index) => ({ mal_id: index + 1, name }));
 };
 
 const Index = () => {
+  const location = useLocation();
   const [animeSearchQuery, setAnimeSearchQuery] = useState('');
   const [mangaSearchQuery, setMangaSearchQuery] = useState('');
   const [animeSearchResults, setAnimeSearchResults] = useState<any[]>([]);
@@ -77,6 +40,19 @@ const Index = () => {
   const [mangaRecommendations, setMangaRecommendations] = useState<any[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [hasRecommendations, setHasRecommendations] = useState(false);
+
+  // Reset recommendations when coming back to home page
+  useEffect(() => {
+    if (location.pathname === '/') {
+      setHasRecommendations(false);
+      setAnimeRecommendations([]);
+      setMangaRecommendations([]);
+      setIsSearchingAnime(false);
+      setIsSearchingManga(false);
+      setAnimeSearchResults([]);
+      setMangaSearchResults([]);
+    }
+  }, [location.pathname]);
 
   // Fetch trending anime from AniList
   const {
@@ -102,23 +78,6 @@ const Index = () => {
     }
   });
 
-  // Fetch genres from Jikan
-  const {
-    data: animeGenresData,
-    isLoading: animeGenresLoading
-  } = useQuery({
-    queryKey: ['anime-genres'],
-    queryFn: fetchAnimeGenres
-  });
-
-  const {
-    data: mangaGenresData,
-    isLoading: mangaGenresLoading
-  } = useQuery({
-    queryKey: ['manga-genres'],
-    queryFn: fetchMangaGenres
-  });
-
   const handleAnimeSearch = async (query: string) => {
     if (!query.trim()) {
       setAnimeSearchResults([]);
@@ -127,6 +86,7 @@ const Index = () => {
     }
     setIsSearchingAnime(true);
     setAnimeSearchQuery(query);
+    setHasRecommendations(false);
     try {
       const data = await searchAnimeAniList(query);
       setAnimeSearchResults(data.map(convertAniListToJikan));
@@ -144,6 +104,7 @@ const Index = () => {
     }
     setIsSearchingManga(true);
     setMangaSearchQuery(query);
+    setHasRecommendations(false);
     try {
       const data = await searchMangaAniList(query);
       setMangaSearchResults(data.map(convertAniListToJikan));
@@ -162,41 +123,16 @@ const Index = () => {
     setMangaSearchResults([]);
 
     try {
-      // Map genre names to IDs
-      const animeGenres = animeGenresData?.data || [];
-      const mangaGenres = mangaGenresData?.data || [];
-      
-      const animeGenreIds = genres.map(genreName => {
-        const genre = animeGenres.find(g => g.name === genreName);
-        return genre ? genre.mal_id.toString() : null;
-      }).filter(Boolean);
-      
-      const mangaGenreIds = genres.map(genreName => {
-        const genre = mangaGenres.find(g => g.name === genreName);
-        return genre ? genre.mal_id.toString() : null;
-      }).filter(Boolean);
-      
-      console.log('Mapped anime genre IDs:', animeGenreIds);
-      console.log('Mapped manga genre IDs:', mangaGenreIds);
-      
-      if (animeGenreIds.length === 0 && mangaGenreIds.length === 0) {
-        console.error('No valid genre IDs found');
-        setAnimeRecommendations([]);
-        setMangaRecommendations([]);
-        setHasRecommendations(true);
-        return;
-      }
-      
       const [animeData, mangaData] = await Promise.all([
-        animeGenreIds.length > 0 ? fetchAnimeByGenres(animeGenreIds, yearRange) : { data: [] },
-        mangaGenreIds.length > 0 ? fetchMangaByGenres(mangaGenreIds, yearRange) : { data: [] }
+        fetchAnimeByGenresAniList(genres, yearRange),
+        fetchMangaByGenresAniList(genres, yearRange)
       ]);
       
-      console.log('Final anime recommendations:', animeData.data);
-      console.log('Final manga recommendations:', mangaData.data);
+      console.log('Final anime recommendations:', animeData);
+      console.log('Final manga recommendations:', mangaData);
       
-      setAnimeRecommendations(animeData.data || []);
-      setMangaRecommendations(mangaData.data || []);
+      setAnimeRecommendations(animeData.map(convertAniListToJikan));
+      setMangaRecommendations(mangaData.map(convertAniListToJikan));
       setHasRecommendations(true);
     } catch (error) {
       console.error('Recommendation fetch failed:', error);
@@ -208,46 +144,44 @@ const Index = () => {
     }
   };
 
-  const animeGenres = animeGenresData?.data || [];
-  const mangaGenres = mangaGenresData?.data || [];
-  const isGenresLoading = animeGenresLoading || mangaGenresLoading;
+  const mockGenres = createMockGenres();
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <div className="relative py-20 px-4">
+      <div className="relative py-12 md:py-20 px-4">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent"></div>
-        <div className="relative max-w-6xl mx-auto text-center space-y-8">
-          <div className="space-y-4">
-            <h1 className="text-5xl gradient-text font-bold md:text-7xl">
+        <div className="relative max-w-6xl mx-auto text-center space-y-6 md:space-y-8">
+          <div className="space-y-2 md:space-y-4">
+            <h1 className="text-4xl md:text-5xl lg:text-7xl gradient-text font-bold">
               Kagura<span className="text-foreground">bachi</span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Discover the best anime and manga recommendations with AI-powered suggestions
             </p>
           </div>
           
           {/* Dual Search Bars */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-5xl mx-auto">
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Search Anime</h3>
+              <h3 className="text-xs md:text-sm font-medium text-muted-foreground uppercase tracking-wider">Search Anime</h3>
               <SearchBar onSearch={handleAnimeSearch} />
             </div>
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Search Manga</h3>
+              <h3 className="text-xs md:text-sm font-medium text-muted-foreground uppercase tracking-wider">Search Manga</h3>
               <MangaSearchBar onSearch={handleMangaSearch} />
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 space-y-16 pb-20">
+      <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20">
         {/* AI Recommendations */}
         <AIRecommendations 
-          animeGenres={animeGenres} 
-          mangaGenres={mangaGenres} 
+          animeGenres={mockGenres} 
+          mangaGenres={mockGenres} 
           onRecommendationRequest={handleRecommendationRequest} 
-          isLoading={isGenresLoading} 
+          isLoading={false} 
         />
 
         {/* AI Recommendation Results */}
@@ -261,19 +195,19 @@ const Index = () => {
 
         {/* Anime Search Results */}
         {isSearchingAnime && (
-          <section className="space-y-6">
-            <h2 className="text-3xl font-bold text-center gradient-text">
+          <section className="space-y-4 md:space-y-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
               Anime Results for "{animeSearchQuery}"
             </h2>
             {animeSearchResults.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
                 {animeSearchResults.map(anime => (
                   <AnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-lg">No anime found matching your search criteria.</p>
+              <div className="text-center py-8 md:py-12 px-4">
+                <p className="text-muted-foreground text-base md:text-lg">No anime found matching your search criteria.</p>
               </div>
             )}
           </section>
@@ -281,19 +215,19 @@ const Index = () => {
 
         {/* Manga Search Results */}
         {isSearchingManga && (
-          <section className="space-y-6">
-            <h2 className="text-3xl font-bold text-center gradient-text">
+          <section className="space-y-4 md:space-y-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
               Manga Results for "{mangaSearchQuery}"
             </h2>
             {mangaSearchResults.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
                 {mangaSearchResults.map(manga => (
                   <AnimeCard key={manga.mal_id} anime={manga} />
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-lg">No manga found matching your search criteria.</p>
+              <div className="text-center py-8 md:py-12 px-4">
+                <p className="text-muted-foreground text-base md:text-lg">No manga found matching your search criteria.</p>
               </div>
             )}
           </section>
@@ -313,13 +247,13 @@ const Index = () => {
             {trendingMangaLoading ? (
               <LoadingSpinner />
             ) : trendingMangaData && (
-              <section className="space-y-6">
+              <section className="space-y-4 md:space-y-6">
                 <div className="text-center space-y-2">
-                  <h2 className="text-3xl font-bold gradient-text">Trending Manga</h2>
-                  <div className="w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
+                  <h2 className="text-2xl md:text-3xl font-bold gradient-text">Trending Manga</h2>
+                  <div className="w-16 md:w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
                   {trendingMangaData.map((manga: any) => (
                     <AnimeCard key={manga.mal_id} anime={manga} />
                   ))}

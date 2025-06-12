@@ -55,7 +55,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
       className="anime-card group cursor-pointer"
       onClick={handleCardClick}
     >
-      <div className="relative h-80 overflow-hidden">
+      <div className="relative h-48 md:h-64 lg:h-80 overflow-hidden">
         <img
           src={getHighQualityImage()}
           alt={anime.title}
@@ -68,43 +68,47 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
         
-        <div className="absolute top-4 left-4">
-          <span className="bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-semibold">
+        <div className="absolute top-2 md:top-4 left-2 md:left-4">
+          <span className="bg-primary/90 text-primary-foreground px-2 md:px-3 py-1 rounded-full text-xs font-semibold">
             {getYear()}
           </span>
         </div>
       </div>
 
-      <div className="p-6 space-y-4">
+      <div className="p-3 md:p-4 lg:p-6 space-y-2 md:space-y-3 lg:space-y-4">
         <div>
-          <h3 className="text-xl font-bold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200">
+          <h3 className="text-sm md:text-lg lg:text-xl font-bold text-foreground mb-1 md:mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200">
             {anime.title}
           </h3>
         </div>
 
         {anime.synopsis && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-1 md:space-y-2 hidden md:block">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Synopsis
             </h4>
-            <p className="text-sm text-foreground/80 leading-relaxed">
-              {truncateText(anime.synopsis, 150)}
+            <p className="text-xs md:text-sm text-foreground/80 leading-relaxed">
+              {truncateText(anime.synopsis, 100)}
             </p>
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-2 md:space-y-3">
           <div>
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 md:mb-2">
               Genre
             </h4>
             <div className="flex flex-wrap gap-1">
-              {anime.genres.map((genre, index) => (
-                <span key={genre.name} className="genre-tag">
+              {anime.genres.slice(0, 3).map((genre, index) => (
+                <span key={genre.name} className="bg-secondary text-secondary-foreground px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium">
                   {genre.name}
-                  {index < anime.genres.length - 1 ? ' |' : ''}
                 </span>
               ))}
+              {anime.genres.length > 3 && (
+                <span className="bg-secondary text-secondary-foreground px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium">
+                  +{anime.genres.length - 3}
+                </span>
+              )}
             </div>
           </div>
         </div>

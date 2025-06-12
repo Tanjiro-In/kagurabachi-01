@@ -1,3 +1,4 @@
+
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 
 export interface AniListAnime {
@@ -162,6 +163,64 @@ const SEARCH_MANGA_QUERY = `
   }
 `;
 
+const ANIME_BY_GENRE_QUERY = `
+  query($genres: [String], $year: Int) {
+    Page(page: 1, perPage: 8) {
+      media(type: ANIME, genre_in: $genres, startDate_greater: $year, sort: SCORE_DESC) {
+        id
+        idMal
+        title {
+          romaji
+          english
+          native
+        }
+        coverImage {
+          extraLarge
+          large
+          medium
+        }
+        averageScore
+        genres
+        format
+        status
+        episodes
+        startDate {
+          year
+        }
+      }
+    }
+  }
+`;
+
+const MANGA_BY_GENRE_QUERY = `
+  query($genres: [String], $year: Int) {
+    Page(page: 1, perPage: 8) {
+      media(type: MANGA, genre_in: $genres, startDate_greater: $year, sort: SCORE_DESC) {
+        id
+        idMal
+        title {
+          romaji
+          english
+          native
+        }
+        coverImage {
+          extraLarge
+          large
+          medium
+        }
+        averageScore
+        genres
+        format
+        status
+        chapters
+        startDate {
+          year
+        }
+      }
+    }
+  }
+`;
+
 export const fetchTrendingAnimeAniList = async (): Promise<AniListAnime[]> => {
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -175,7 +234,9 @@ export const fetchTrendingAnimeAniList = async (): Promise<AniListAnime[]> => {
 
   if (!response.ok) throw new Error('Failed to fetch trending anime from AniList');
   const data = await response.json();
-  return data.data.Page.media;
+  return data.data.Page.media.filter((anime: AniListAnime) => 
+    anime.title && anime.coverImage && anime.genres && anime.genres.length > 0
+  );
 };
 
 export const fetchTrendingMangaAniList = async (): Promise<AniListManga[]> => {
@@ -191,7 +252,9 @@ export const fetchTrendingMangaAniList = async (): Promise<AniListManga[]> => {
 
   if (!response.ok) throw new Error('Failed to fetch trending manga from AniList');
   const data = await response.json();
-  return data.data.Page.media;
+  return data.data.Page.media.filter((manga: AniListManga) => 
+    manga.title && manga.coverImage && manga.genres && manga.genres.length > 0
+  );
 };
 
 export const searchAnimeAniList = async (query: string): Promise<AniListAnime[]> => {
@@ -224,6 +287,52 @@ export const searchMangaAniList = async (query: string): Promise<AniListManga[]>
   });
 
   if (!response.ok) throw new Error('Failed to search manga on AniList');
+  const data = await response.json();
+  return data.data.Page.media;
+};
+
+export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListAnime[]> => {
+  let year = null;
+  if (yearRange !== 'any') {
+    const [startYear] = yearRange.split('-');
+    year = parseInt(startYear);
+  }
+
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: ANIME_BY_GENRE_QUERY,
+      variables: { genres, year },
+    }),
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch anime by genres from AniList');
+  const data = await response.json();
+  return data.data.Page.media;
+};
+
+export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListManga[]> => {
+  let year = null;
+  if (yearRange !== 'any') {
+    const [startYear] = yearRange.split('-');
+    year = parseInt(startYear);
+  }
+
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: MANGA_BY_GENRE_QUERY,
+      variables: { genres, year },
+    }),
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch manga by genres from AniList');
   const data = await response.json();
   return data.data.Page.media;
 };

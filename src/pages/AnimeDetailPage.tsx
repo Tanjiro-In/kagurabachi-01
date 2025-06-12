@@ -70,6 +70,10 @@ const AnimeDetailPage = () => {
     retry: 1,
   });
 
+  const handleBackToHome = () => {
+    navigate('/');
+  };
+
   if (animeLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -81,14 +85,14 @@ const AnimeDetailPage = () => {
   if (animeError || !animeData?.data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Anime not found</h2>
-          <p className="text-muted-foreground">
+        <div className="text-center space-y-4 px-4">
+          <h2 className="text-xl md:text-2xl font-bold text-foreground">Anime not found</h2>
+          <p className="text-sm md:text-base text-muted-foreground">
             This anime might not be available in our database or the ID might be incorrect.
           </p>
           <button 
-            onClick={() => navigate('/')}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"
+            onClick={handleBackToHome}
+            className="bg-primary text-primary-foreground px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-primary/90 transition-colors text-sm md:text-base"
           >
             Return Home
           </button>
@@ -103,7 +107,7 @@ const AnimeDetailPage = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <div className="relative h-96 overflow-hidden">
+      <div className="relative h-64 md:h-96 overflow-hidden">
         <img
           src={anime.images.jpg.large_image_url}
           alt={anime.title}
@@ -111,28 +115,28 @@ const AnimeDetailPage = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
         
-        <div className="absolute top-8 left-8">
+        <div className="absolute top-4 md:top-8 left-4 md:left-8">
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 bg-card/80 backdrop-blur-sm text-foreground px-4 py-2 rounded-lg hover:bg-card transition-colors"
+            onClick={handleBackToHome}
+            className="flex items-center gap-2 bg-card/80 backdrop-blur-sm text-foreground px-3 md:px-4 py-2 rounded-lg hover:bg-card transition-colors text-sm md:text-base"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={16} className="md:w-5 md:h-5" />
             Back to Home
           </button>
         </div>
 
-        <div className="absolute bottom-8 left-8 right-8">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
+        <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 right-4 md:right-8">
+          <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-start">
             <img
               src={anime.images.jpg.large_image_url}
               alt={anime.title}
-              className="w-48 h-64 object-cover rounded-xl shadow-2xl"
+              className="w-32 h-44 md:w-48 md:h-64 object-cover rounded-xl shadow-2xl mx-auto md:mx-0"
             />
-            <div className="space-y-4 flex-1">
-              <h1 className="text-4xl md:text-6xl font-bold gradient-text">
+            <div className="space-y-2 md:space-y-4 flex-1 text-center md:text-left">
+              <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold gradient-text">
                 {anime.title}
               </h1>
-              <div className="flex flex-wrap gap-4 text-muted-foreground">
+              <div className="flex flex-wrap justify-center md:justify-start gap-2 md:gap-4 text-xs md:text-base text-muted-foreground">
                 <span>{anime.year || 'Unknown Year'}</span>
                 <span>•</span>
                 <span>{anime.episodes ? `${anime.episodes} Episodes` : 'Unknown Episodes'}</span>
@@ -144,7 +148,7 @@ const AnimeDetailPage = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-12 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 space-y-8 md:space-y-12">
         {/* Image Gallery */}
         {!picturesLoading && (
           <ImageGallery images={pictures} title={anime.title} />

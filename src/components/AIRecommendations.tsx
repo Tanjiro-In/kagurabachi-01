@@ -64,26 +64,26 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold gradient-text flex items-center justify-center gap-2">
-            <Sparkles className="w-6 h-6" />
+          <h2 className="text-xl md:text-2xl font-bold gradient-text flex items-center justify-center gap-2">
+            <Sparkles className="w-5 md:w-6 h-5 md:h-6" />
             AI Recommendations
           </h2>
-          <p className="text-muted-foreground">Personalized anime & manga suggestions</p>
+          <p className="text-sm md:text-base text-muted-foreground px-4">Personalized anime & manga suggestions</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:gap-6">
           <div className="space-y-3">
-            <div className="h-6 w-32 bg-secondary animate-pulse rounded" />
+            <div className="h-5 md:h-6 w-24 md:w-32 bg-secondary animate-pulse rounded" />
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="h-10 w-20 bg-secondary animate-pulse rounded-lg" />
+                <div key={index} className="h-8 md:h-10 w-16 md:w-20 bg-secondary animate-pulse rounded-lg" />
               ))}
             </div>
           </div>
           <div className="space-y-3">
-            <div className="h-6 w-32 bg-secondary animate-pulse rounded" />
-            <div className="h-12 w-full bg-secondary animate-pulse rounded-lg" />
+            <div className="h-5 md:h-6 w-24 md:w-32 bg-secondary animate-pulse rounded" />
+            <div className="h-10 md:h-12 w-full bg-secondary animate-pulse rounded-lg" />
           </div>
         </div>
       </div>
@@ -91,20 +91,20 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold gradient-text flex items-center justify-center gap-2">
-          <Sparkles className="w-6 h-6" />
+        <h2 className="text-xl md:text-2xl font-bold gradient-text flex items-center justify-center gap-2">
+          <Sparkles className="w-5 md:w-6 h-5 md:h-6" />
           AI Recommendations
         </h2>
-        <p className="text-muted-foreground">Get personalized anime & manga suggestions based on your preferences</p>
+        <p className="text-sm md:text-base text-muted-foreground px-4">Get personalized anime & manga suggestions based on your preferences</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Genre Selection */}
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Tags className="w-5 h-5" />
+          <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+            <Tags className="w-4 md:w-5 h-4 md:h-5" />
             Select Genres
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -112,7 +112,7 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
               <button
                 key={genre.mal_id}
                 onClick={() => handleGenreToggle(genre.name)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                className={`px-2 md:px-3 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 ${
                   selectedGenres.includes(genre.name)
                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
                     : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
@@ -126,14 +126,14 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
 
         {/* Year Selection */}
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
+          <h3 className="text-base md:text-lg font-semibold text-foreground flex items-center gap-2">
+            <Calendar className="w-4 md:w-5 h-4 md:h-5" />
             Time Period
           </h3>
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="w-full px-4 py-3 bg-input border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full px-3 md:px-4 py-2 md:py-3 bg-input border border-border rounded-lg text-sm md:text-base text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           >
             {YEAR_RANGES.map((range) => (
               <option key={range.value} value={range.value}>
@@ -149,13 +149,13 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
         <button
           onClick={handleGetRecommendations}
           disabled={selectedGenres.length === 0}
-          className={`px-8 py-3 rounded-lg font-semibold transition-all duration-200 ${
+          className={`px-6 md:px-8 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold transition-all duration-200 ${
             selectedGenres.length > 0
               ? 'bg-gradient-to-r from-primary to-purple-400 text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5'
               : 'bg-secondary text-muted-foreground cursor-not-allowed'
           }`}
         >
-          <Sparkles className="w-5 h-5 inline mr-2" />
+          <Sparkles className="w-4 md:w-5 h-4 md:h-5 inline mr-2" />
           Get AI Recommendations
         </button>
       </div>
