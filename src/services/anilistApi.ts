@@ -163,13 +163,12 @@ const SEARCH_MANGA_QUERY = `
 `;
 
 const ANIME_BY_GENRE_QUERY = `
-  query($genres: [String], $startYear: Int, $endYear: Int) {
+  query($genres: [String], $seasonYear: Int) {
     Page(page: 1, perPage: 8) {
       media(
         type: ANIME, 
         genre_in: $genres, 
-        startDate_greater: $startYear,
-        startDate_lesser: $endYear,
+        seasonYear: $seasonYear,
         sort: SCORE_DESC,
         averageScore_greater: 60
       ) {
@@ -200,13 +199,12 @@ const ANIME_BY_GENRE_QUERY = `
 `;
 
 const MANGA_BY_GENRE_QUERY = `
-  query($genres: [String], $startYear: Int, $endYear: Int) {
+  query($genres: [String], $seasonYear: Int) {
     Page(page: 1, perPage: 8) {
       media(
         type: MANGA, 
         genre_in: $genres, 
-        startDate_greater: $startYear,
-        startDate_lesser: $endYear,
+        seasonYear: $seasonYear,
         sort: SCORE_DESC,
         averageScore_greater: 60
       ) {
@@ -307,14 +305,15 @@ export const searchMangaAniList = async (query: string): Promise<AniListManga[]>
 };
 
 export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListAnime[]> => {
-  let startYear = null;
-  let endYear = null;
+  let seasonYear = null;
   
   if (yearRange !== 'any') {
     const [start, end] = yearRange.split('-').map(y => parseInt(y));
-    startYear = start;
-    endYear = end + 1; // Add 1 to make it inclusive
+    // Use the middle year of the range for seasonYear
+    seasonYear = Math.floor((start + end) / 2);
   }
+
+  console.log('Fetching anime with genres:', genres, 'and seasonYear:', seasonYear);
 
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -323,27 +322,38 @@ export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: str
     },
     body: JSON.stringify({
       query: ANIME_BY_GENRE_QUERY,
-      variables: { genres, startYear, endYear },
+      variables: { genres, seasonYear },
     }),
   });
 
-  if (!response.ok) throw new Error('Failed to fetch anime by genres from AniList');
+  if (!response.ok) {
+    console.error('Failed to fetch anime by genres from AniList');
+    throw new Error('Failed to fetch anime by genres from AniList');
+  }
+  
   const data = await response.json();
   console.log('Anime by genres response:', data);
+  
+  if (data.errors) {
+    console.error('GraphQL errors:', data.errors);
+    return [];
+  }
+  
   return data.data.Page.media.filter((anime: AniListAnime) => 
     anime.title && anime.coverImage && anime.genres && anime.genres.length > 0
   );
 };
 
 export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListManga[]> => {
-  let startYear = null;
-  let endYear = null;
+  let seasonYear = null;
   
   if (yearRange !== 'any') {
     const [start, end] = yearRange.split('-').map(y => parseInt(y));
-    startYear = start;
-    endYear = end + 1; // Add 1 to make it inclusive
+    // Use the middle year of the range for seasonYear
+    seasonYear = Math.floor((start + end) / 2);
   }
+
+  console.log('Fetching manga with genres:', genres, 'and seasonYear:', seasonYear);
 
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -352,13 +362,23 @@ export const fetchMangaByGenresAniList = async (genres: string[], yearRange: str
     },
     body: JSON.stringify({
       query: MANGA_BY_GENRE_QUERY,
-      variables: { genres, startYear, endYear },
+      variables: { genres, seasonYear },
     }),
   });
 
-  if (!response.ok) throw new Error('Failed to fetch manga by genres from AniList');
+  if (!response.ok) {
+    console.error('Failed to fetch manga by genres from AniList');
+    throw new Error('Failed to fetch manga by genres from AniList');
+  }
+  
   const data = await response.json();
   console.log('Manga by genres response:', data);
+  
+  if (data.errors) {
+    console.error('GraphQL errors:', data.errors);
+    return [];
+  }
+  
   return data.data.Page.media.filter((manga: AniListManga) => 
     manga.title && manga.coverImage && manga.genres && manga.genres.length > 0
   );
