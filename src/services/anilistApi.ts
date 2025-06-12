@@ -1,3 +1,4 @@
+
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 
 export interface AniListAnime {
@@ -220,62 +221,6 @@ const MANGA_BY_GENRE_QUERY = `
   }
 `;
 
-const ANIME_BY_GENRES_QUERY = `
-  query ($genres: [String], $year_greater: Int, $year_lesser: Int, $sort: [MediaSort]) {
-    Page(page: 1, perPage: 8) {
-      media(type: ANIME, genre_in: $genres, startDate_greater: $year_greater, startDate_lesser: $year_lesser, sort: $sort, isAdult: false) {
-        id
-        title {
-          romaji
-          english
-          native
-        }
-        startDate {
-          year
-        }
-        genres
-        averageScore
-        description
-        coverImage {
-          large
-          extraLarge
-        }
-        format
-        status
-        episodes
-      }
-    }
-  }
-`;
-
-const MANGA_BY_GENRES_QUERY = `
-  query ($genres: [String], $year_greater: Int, $year_lesser: Int, $sort: [MediaSort]) {
-    Page(page: 1, perPage: 8) {
-      media(type: MANGA, genre_in: $genres, startDate_greater: $year_greater, startDate_lesser: $year_lesser, sort: $sort, isAdult: false) {
-        id
-        title {
-          romaji
-          english
-          native
-        }
-        startDate {
-          year
-        }
-        genres
-        averageScore
-        description
-        coverImage {
-          large
-          extraLarge
-        }
-        format
-        status
-        chapters
-      }
-    }
-  }
-`;
-
 export const fetchTrendingAnimeAniList = async (): Promise<AniListAnime[]> => {
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -346,108 +291,48 @@ export const searchMangaAniList = async (query: string): Promise<AniListManga[]>
   return data.data.Page.media;
 };
 
-export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string) => {
-  try {
-    console.log('Fetching anime by genres:', genres, 'year range:', yearRange);
-    
-    let year_greater = null;
-    let year_lesser = null;
-    
-    if (yearRange !== 'any') {
-      const [startYear, endYear] = yearRange.split('-');
-      if (startYear && endYear) {
-        year_greater = parseInt(startYear) * 10000; // AniList format: YYYYMMDD
-        year_lesser = (parseInt(endYear) + 1) * 10000; // Next year to include end year
-      }
-    }
-
-    const variables = {
-      genres: genres,
-      year_greater,
-      year_lesser,
-      sort: ['SCORE_DESC', 'POPULARITY_DESC']
-    };
-
-    console.log('AniList anime query variables:', variables);
-
-    const response = await fetch(ANILIST_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: ANIME_BY_GENRES_QUERY,
-        variables,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('AniList anime by genres response:', data);
-
-    if (data.errors) {
-      throw new Error(`AniList API error: ${data.errors[0].message}`);
-    }
-
-    return data.data.Page.media || [];
-  } catch (error) {
-    console.error('Failed to fetch anime by genres from AniList:', error);
-    throw new Error('Failed to fetch anime by genres from AniList');
+export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListAnime[]> => {
+  let year = null;
+  if (yearRange !== 'any') {
+    const [startYear] = yearRange.split('-');
+    year = parseInt(startYear);
   }
+
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: ANIME_BY_GENRE_QUERY,
+      variables: { genres, year },
+    }),
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch anime by genres from AniList');
+  const data = await response.json();
+  return data.data.Page.media;
 };
 
-export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string) => {
-  try {
-    console.log('Fetching manga by genres:', genres, 'year range:', yearRange);
-    
-    let year_greater = null;
-    let year_lesser = null;
-    
-    if (yearRange !== 'any') {
-      const [startYear, endYear] = yearRange.split('-');
-      if (startYear && endYear) {
-        year_greater = parseInt(startYear) * 10000; // AniList format: YYYYMMDD
-        year_lesser = (parseInt(endYear) + 1) * 10000; // Next year to include end year
-      }
-    }
-
-    const variables = {
-      genres: genres,
-      year_greater,
-      year_lesser,
-      sort: ['SCORE_DESC', 'POPULARITY_DESC']
-    };
-
-    console.log('AniList manga query variables:', variables);
-
-    const response = await fetch(ANILIST_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: MANGA_BY_GENRES_QUERY,
-        variables,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('AniList manga by genres response:', data);
-
-    if (data.errors) {
-      throw new Error(`AniList API error: ${data.errors[0].message}`);
-    }
-
-    return data.data.Page.media || [];
-  } catch (error) {
-    console.error('Failed to fetch manga by genres from AniList:', error);
-    throw new Error('Failed to fetch manga by genres from AniList');
+export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListManga[]> => {
+  let year = null;
+  if (yearRange !== 'any') {
+    const [startYear] = yearRange.split('-');
+    year = parseInt(startYear);
   }
+
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: MANGA_BY_GENRE_QUERY,
+      variables: { genres, year },
+    }),
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch manga by genres from AniList');
+  const data = await response.json();
+  return data.data.Page.media;
 };

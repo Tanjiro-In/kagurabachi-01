@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -54,57 +55,58 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
       className="anime-card group cursor-pointer"
       onClick={handleCardClick}
     >
-      <div className="relative h-40 md:h-48 lg:h-64 xl:h-80 overflow-hidden">
+      <div className="relative h-48 md:h-64 lg:h-80 overflow-hidden">
         <img
           src={getHighQualityImage()}
           alt={anime.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 filter grayscale group-hover:grayscale-0"
           loading="lazy"
           onError={(e) => {
+            // Fallback to a placeholder if image fails to load
             (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x400/1a1a1a/ffffff?text=No+Image';
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-300" />
         
-        <div className="absolute top-2 left-2">
-          <span className="bg-primary/90 text-primary-foreground px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs font-semibold">
+        <div className="absolute top-2 md:top-4 left-2 md:left-4">
+          <span className="bg-primary/90 text-primary-foreground px-2 md:px-3 py-1 rounded-full text-xs font-semibold">
             {getYear()}
           </span>
         </div>
       </div>
 
-      <div className="p-2 md:p-3 lg:p-4 xl:p-6 space-y-1.5 md:space-y-2 lg:space-y-3">
+      <div className="p-3 md:p-4 lg:p-6 space-y-2 md:space-y-3 lg:space-y-4">
         <div>
-          <h3 className="text-xs md:text-sm lg:text-lg xl:text-xl font-bold text-foreground mb-1 line-clamp-2 group-hover:text-primary transition-colors duration-200">
+          <h3 className="text-sm md:text-lg lg:text-xl font-bold text-foreground mb-1 md:mb-2 line-clamp-2 group-hover:text-primary transition-colors duration-200">
             {anime.title}
           </h3>
         </div>
 
         {anime.synopsis && (
-          <div className="space-y-1 hidden md:block lg:block">
+          <div className="space-y-1 md:space-y-2 hidden md:block">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Synopsis
             </h4>
-            <p className="text-xs lg:text-sm text-foreground/80 leading-relaxed">
-              {truncateText(anime.synopsis, 80)}
+            <p className="text-xs md:text-sm text-foreground/80 leading-relaxed">
+              {truncateText(anime.synopsis, 100)}
             </p>
           </div>
         )}
 
-        <div className="space-y-1.5 md:space-y-2">
+        <div className="space-y-2 md:space-y-3">
           <div>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 md:mb-2">
               Genre
             </h4>
             <div className="flex flex-wrap gap-1">
-              {anime.genres.slice(0, 2).map((genre, index) => (
-                <span key={genre.name} className="bg-secondary text-secondary-foreground px-1.5 py-0.5 md:px-2 md:py-1 rounded text-xs font-medium">
+              {anime.genres.slice(0, 3).map((genre, index) => (
+                <span key={genre.name} className="bg-secondary text-secondary-foreground px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium">
                   {genre.name}
                 </span>
               ))}
-              {anime.genres.length > 2 && (
-                <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 md:px-2 md:py-1 rounded text-xs font-medium">
-                  +{anime.genres.length - 2}
+              {anime.genres.length > 3 && (
+                <span className="bg-secondary text-secondary-foreground px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs font-medium">
+                  +{anime.genres.length - 3}
                 </span>
               )}
             </div>
