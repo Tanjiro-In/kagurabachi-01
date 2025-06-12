@@ -115,6 +115,15 @@ const Index = () => {
   };
 
   const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
+    // Handle reset case
+    if (yearRange === 'reset') {
+      setHasRecommendations(false);
+      setAnimeRecommendations([]);
+      setMangaRecommendations([]);
+      setIsLoadingRecommendations(false);
+      return;
+    }
+
     console.log('Starting recommendation request with genres:', genres, 'and year:', yearRange);
     setIsLoadingRecommendations(true);
     setIsSearchingAnime(false);

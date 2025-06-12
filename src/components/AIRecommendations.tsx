@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Sparkles, Calendar, Tags } from 'lucide-react';
+import { Sparkles, Calendar, Tags, RotateCcw } from 'lucide-react';
 
 interface Genre {
   mal_id: number;
@@ -60,6 +59,13 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
     if (selectedGenres.length > 0) {
       onRecommendationRequest(selectedGenres, selectedYear);
     }
+  };
+
+  const handleReset = () => {
+    setSelectedGenres([]);
+    setSelectedYear('any');
+    // Call the parent to reset recommendations
+    onRecommendationRequest([], 'reset');
   };
 
   if (isLoading) {
@@ -145,19 +151,29 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
       </div>
 
       {/* Get Recommendations Button */}
-      <div className="text-center">
-        <button
-          onClick={handleGetRecommendations}
-          disabled={selectedGenres.length === 0}
-          className={`px-6 md:px-8 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold transition-all duration-200 ${
-            selectedGenres.length > 0
-              ? 'bg-gradient-to-r from-primary to-purple-400 text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5'
-              : 'bg-secondary text-muted-foreground cursor-not-allowed'
-          }`}
-        >
-          <Sparkles className="w-4 md:w-5 h-4 md:h-5 inline mr-2" />
-          Get AI Recommendations
-        </button>
+      <div className="text-center space-y-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <button
+            onClick={handleGetRecommendations}
+            disabled={selectedGenres.length === 0}
+            className={`px-6 md:px-8 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold transition-all duration-200 ${
+              selectedGenres.length > 0
+                ? 'bg-gradient-to-r from-primary to-purple-400 text-white hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5'
+                : 'bg-secondary text-muted-foreground cursor-not-allowed'
+            }`}
+          >
+            <Sparkles className="w-4 md:w-5 h-4 md:h-5 inline mr-2" />
+            Get AI Recommendations
+          </button>
+          
+          <button
+            onClick={handleReset}
+            className="px-4 md:px-6 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all duration-200"
+          >
+            <RotateCcw className="w-4 md:w-5 h-4 md:h-5 inline mr-2" />
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   );

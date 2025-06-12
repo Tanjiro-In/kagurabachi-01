@@ -1,4 +1,3 @@
-
 const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 
 export interface AniListAnime {
@@ -164,9 +163,16 @@ const SEARCH_MANGA_QUERY = `
 `;
 
 const ANIME_BY_GENRE_QUERY = `
-  query($genres: [String], $year: Int) {
+  query($genres: [String], $startYear: Int, $endYear: Int) {
     Page(page: 1, perPage: 8) {
-      media(type: ANIME, genre_in: $genres, startDate_greater: $year, sort: SCORE_DESC) {
+      media(
+        type: ANIME, 
+        genre_in: $genres, 
+        startDate_greater: $startYear,
+        startDate_lesser: $endYear,
+        sort: SCORE_DESC,
+        averageScore_greater: 60
+      ) {
         id
         idMal
         title {
@@ -174,6 +180,7 @@ const ANIME_BY_GENRE_QUERY = `
           english
           native
         }
+        description
         coverImage {
           extraLarge
           large
@@ -193,9 +200,16 @@ const ANIME_BY_GENRE_QUERY = `
 `;
 
 const MANGA_BY_GENRE_QUERY = `
-  query($genres: [String], $year: Int) {
+  query($genres: [String], $startYear: Int, $endYear: Int) {
     Page(page: 1, perPage: 8) {
-      media(type: MANGA, genre_in: $genres, startDate_greater: $year, sort: SCORE_DESC) {
+      media(
+        type: MANGA, 
+        genre_in: $genres, 
+        startDate_greater: $startYear,
+        startDate_lesser: $endYear,
+        sort: SCORE_DESC,
+        averageScore_greater: 60
+      ) {
         id
         idMal
         title {
@@ -203,6 +217,7 @@ const MANGA_BY_GENRE_QUERY = `
           english
           native
         }
+        description
         coverImage {
           extraLarge
           large
@@ -292,10 +307,13 @@ export const searchMangaAniList = async (query: string): Promise<AniListManga[]>
 };
 
 export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListAnime[]> => {
-  let year = null;
+  let startYear = null;
+  let endYear = null;
+  
   if (yearRange !== 'any') {
-    const [startYear] = yearRange.split('-');
-    year = parseInt(startYear);
+    const [start, end] = yearRange.split('-').map(y => parseInt(y));
+    startYear = start;
+    endYear = end + 1; // Add 1 to make it inclusive
   }
 
   const response = await fetch(ANILIST_ENDPOINT, {
@@ -305,20 +323,26 @@ export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: str
     },
     body: JSON.stringify({
       query: ANIME_BY_GENRE_QUERY,
-      variables: { genres, year },
+      variables: { genres, startYear, endYear },
     }),
   });
 
   if (!response.ok) throw new Error('Failed to fetch anime by genres from AniList');
   const data = await response.json();
-  return data.data.Page.media;
+  console.log('Anime by genres response:', data);
+  return data.data.Page.media.filter((anime: AniListAnime) => 
+    anime.title && anime.coverImage && anime.genres && anime.genres.length > 0
+  );
 };
 
 export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListManga[]> => {
-  let year = null;
+  let startYear = null;
+  let endYear = null;
+  
   if (yearRange !== 'any') {
-    const [startYear] = yearRange.split('-');
-    year = parseInt(startYear);
+    const [start, end] = yearRange.split('-').map(y => parseInt(y));
+    startYear = start;
+    endYear = end + 1; // Add 1 to make it inclusive
   }
 
   const response = await fetch(ANILIST_ENDPOINT, {
@@ -328,11 +352,14 @@ export const fetchMangaByGenresAniList = async (genres: string[], yearRange: str
     },
     body: JSON.stringify({
       query: MANGA_BY_GENRE_QUERY,
-      variables: { genres, year },
+      variables: { genres, startYear, endYear },
     }),
   });
 
   if (!response.ok) throw new Error('Failed to fetch manga by genres from AniList');
   const data = await response.json();
-  return data.data.Page.media;
+  console.log('Manga by genres response:', data);
+  return data.data.Page.media.filter((manga: AniListManga) => 
+    manga.title && manga.coverImage && manga.genres && manga.genres.length > 0
+  );
 };
