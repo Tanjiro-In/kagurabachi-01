@@ -144,19 +144,31 @@ const Index = () => {
     }
   };
 
+  const handleReset = () => {
+    setHasRecommendations(false);
+    setAnimeRecommendations([]);
+    setMangaRecommendations([]);
+    setIsSearchingAnime(false);
+    setIsSearchingManga(false);
+    setAnimeSearchResults([]);
+    setMangaSearchResults([]);
+    setAnimeSearchQuery('');
+    setMangaSearchQuery('');
+  };
+
   const mockGenres = createMockGenres();
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <div className="relative py-12 md:py-20 px-4">
+      <div className="relative py-8 md:py-12 lg:py-20 px-4">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent"></div>
-        <div className="relative max-w-6xl mx-auto text-center space-y-6 md:space-y-8">
+        <div className="relative max-w-6xl mx-auto text-center space-y-4 md:space-y-6 lg:space-y-8">
           <div className="space-y-2 md:space-y-4">
-            <h1 className="text-4xl md:text-5xl lg:text-7xl gradient-text font-bold">
+            <h1 className="text-3xl md:text-5xl lg:text-7xl gradient-text font-bold">
               Kagura<span className="text-foreground">bachi</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+            <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
               Discover the best anime and manga recommendations with AI-powered suggestions
             </p>
           </div>
@@ -175,12 +187,13 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20">
+      <div className="max-w-7xl mx-auto px-4 space-y-8 md:space-y-12 lg:space-y-16 pb-12 md:pb-16 lg:pb-20">
         {/* AI Recommendations */}
         <AIRecommendations 
           animeGenres={mockGenres} 
           mangaGenres={mockGenres} 
-          onRecommendationRequest={handleRecommendationRequest} 
+          onRecommendationRequest={handleRecommendationRequest}
+          onReset={handleReset}
           isLoading={false} 
         />
 
@@ -196,18 +209,18 @@ const Index = () => {
         {/* Anime Search Results */}
         {isSearchingAnime && (
           <section className="space-y-4 md:space-y-6">
-            <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-center gradient-text px-4">
               Anime Results for "{animeSearchQuery}"
             </h2>
             {animeSearchResults.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
                 {animeSearchResults.map(anime => (
                   <AnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 md:py-12 px-4">
-                <p className="text-muted-foreground text-base md:text-lg">No anime found matching your search criteria.</p>
+                <p className="text-muted-foreground text-sm md:text-base lg:text-lg">No anime found matching your search criteria.</p>
               </div>
             )}
           </section>
@@ -216,18 +229,18 @@ const Index = () => {
         {/* Manga Search Results */}
         {isSearchingManga && (
           <section className="space-y-4 md:space-y-6">
-            <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-center gradient-text px-4">
               Manga Results for "{mangaSearchQuery}"
             </h2>
             {mangaSearchResults.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
                 {mangaSearchResults.map(manga => (
                   <AnimeCard key={manga.mal_id} anime={manga} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-8 md:py-12 px-4">
-                <p className="text-muted-foreground text-base md:text-lg">No manga found matching your search criteria.</p>
+                <p className="text-muted-foreground text-sm md:text-base lg:text-lg">No manga found matching your search criteria.</p>
               </div>
             )}
           </section>
@@ -247,18 +260,7 @@ const Index = () => {
             {trendingMangaLoading ? (
               <LoadingSpinner />
             ) : trendingMangaData && (
-              <section className="space-y-4 md:space-y-6">
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl md:text-3xl font-bold gradient-text">Trending Manga</h2>
-                  <div className="w-16 md:w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-                  {trendingMangaData.map((manga: any) => (
-                    <AnimeCard key={manga.mal_id} anime={manga} />
-                  ))}
-                </div>
-              </section>
+              <TrendingSection animes={trendingMangaData || []} title="Trending Manga" />
             )}
           </>
         )}
