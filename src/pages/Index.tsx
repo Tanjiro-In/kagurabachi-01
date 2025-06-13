@@ -40,13 +40,18 @@ const Index = () => {
   const [mangaRecommendations, setMangaRecommendations] = useState<any[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [hasRecommendations, setHasRecommendations] = useState(false);
+  const [currentGenres, setCurrentGenres] = useState<string[]>([]);
+  const [currentYearRange, setCurrentYearRange] = useState<string>('any');
+  const [animeCurrentPage, setAnimeCurrentPage] = useState(1);
+  const [mangaCurrentPage, setMangaCurrentPage] = useState(1);
+  const [hasMoreAnime, setHasMoreAnime] = useState(false);
+  const [hasMoreManga, setHasMoreManga] = useState(false);
+  const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
+  const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
 
-  // Reset recommendations when coming back to home page
+  // Reset only search results when coming back to home page, but keep recommendations
   useEffect(() => {
     if (location.pathname === '/') {
-      setHasRecommendations(false);
-      setAnimeRecommendations([]);
-      setMangaRecommendations([]);
       setIsSearchingAnime(false);
       setIsSearchingManga(false);
       setAnimeSearchResults([]);
@@ -121,6 +126,12 @@ const Index = () => {
       setAnimeRecommendations([]);
       setMangaRecommendations([]);
       setIsLoadingRecommendations(false);
+      setCurrentGenres([]);
+      setCurrentYearRange('any');
+      setAnimeCurrentPage(1);
+      setMangaCurrentPage(1);
+      setHasMoreAnime(false);
+      setHasMoreManga(false);
       return;
     }
 
@@ -130,26 +141,70 @@ const Index = () => {
     setIsSearchingManga(false);
     setAnimeSearchResults([]);
     setMangaSearchResults([]);
+    setCurrentGenres(genres);
+    setCurrentYearRange(yearRange);
+    setAnimeCurrentPage(1);
+    setMangaCurrentPage(1);
 
     try {
-      const [animeData, mangaData] = await Promise.all([
-        fetchAnimeByGenresAniList(genres, yearRange),
-        fetchMangaByGenresAniList(genres, yearRange)
+      const [animeResult, mangaResult] = await Promise.all([
+        fetchAnimeByGenresAniList(genres, yearRange, 1),
+        fetchMangaByGenresAniList(genres, yearRange, 1)
       ]);
       
-      console.log('Final anime recommendations:', animeData);
-      console.log('Final manga recommendations:', mangaData);
+      console.log('Final anime recommendations:', animeResult.data);
+      console.log('Final manga recommendations:', mangaResult.data);
       
-      setAnimeRecommendations(animeData.map(convertAniListToJikan));
-      setMangaRecommendations(mangaData.map(convertAniListToJikan));
+      setAnimeRecommendations(animeResult.data.map(convertAniListToJikan));
+      setMangaRecommendations(mangaResult.data.map(convertAniListToJikan));
+      setHasMoreAnime(animeResult.hasNextPage);
+      setHasMoreManga(mangaResult.hasNextPage);
       setHasRecommendations(true);
     } catch (error) {
       console.error('Recommendation fetch failed:', error);
       setAnimeRecommendations([]);
       setMangaRecommendations([]);
+      setHasMoreAnime(false);
+      setHasMoreManga(false);
       setHasRecommendations(true);
     } finally {
       setIsLoadingRecommendations(false);
+    }
+  };
+
+  const handleLoadMoreAnime = async () => {
+    if (isLoadingMoreAnime || !hasMoreAnime) return;
+    
+    setIsLoadingMoreAnime(true);
+    const nextPage = animeCurrentPage + 1;
+    
+    try {
+      const result = await fetchAnimeByGenresAniList(currentGenres, currentYearRange, nextPage);
+      setAnimeRecommendations(prev => [...prev, ...result.data.map(convertAniListToJikan)]);
+      setHasMoreAnime(result.hasNextPage);
+      setAnimeCurrentPage(nextPage);
+    } catch (error) {
+      console.error('Failed to load more anime:', error);
+    } finally {
+      setIsLoadingMoreAnime(false);
+    }
+  };
+
+  const handleLoadMoreManga = async () => {
+    if (isLoadingMoreManga || !hasMoreManga) return;
+    
+    setIsLoadingMoreManga(true);
+    const nextPage = mangaCurrentPage + 1;
+    
+    try {
+      const result = await fetchMangaByGenresAniList(currentGenres, currentYearRange, nextPage);
+      setMangaRecommendations(prev => [...prev, ...result.data.map(convertAniListToJikan)]);
+      setHasMoreManga(result.hasNextPage);
+      setMangaCurrentPage(nextPage);
+    } catch (error) {
+      console.error('Failed to load more manga:', error);
+    } finally {
+      setIsLoadingMoreManga(false);
     }
   };
 
@@ -199,6 +254,12 @@ const Index = () => {
             animeRecommendations={animeRecommendations}
             mangaRecommendations={mangaRecommendations}
             isLoading={isLoadingRecommendations}
+            onLoadMoreAnime={handleLoadMoreAnime}
+            onLoadMoreManga={handleLoadMoreManga}
+            hasMoreAnime={hasMoreAnime}
+            hasMoreManga={hasMoreManga}
+            isLoadingMoreAnime={isLoadingMoreAnime}
+            isLoadingMoreManga={isLoadingMoreManga}
           />
         )}
 

@@ -163,14 +163,20 @@ const SEARCH_MANGA_QUERY = `
 `;
 
 const ANIME_BY_GENRE_QUERY = `
-  query($genres: [String], $seasonYear: Int) {
-    Page(page: 1, perPage: 8) {
+  query($genres: [String], $startDateGreater: FuzzyDateInt, $startDateLesser: FuzzyDateInt, $page: Int, $perPage: Int) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        hasNextPage
+        currentPage
+        lastPage
+      }
       media(
         type: ANIME, 
         genre_in: $genres, 
-        seasonYear: $seasonYear,
-        sort: SCORE_DESC,
-        averageScore_greater: 60
+        startDate_greater: $startDateGreater,
+        startDate_lesser: $startDateLesser,
+        sort: [SCORE_DESC, POPULARITY_DESC],
+        averageScore_greater: 50
       ) {
         id
         idMal
@@ -199,14 +205,20 @@ const ANIME_BY_GENRE_QUERY = `
 `;
 
 const MANGA_BY_GENRE_QUERY = `
-  query($genres: [String], $seasonYear: Int) {
-    Page(page: 1, perPage: 8) {
+  query($genres: [String], $startDateGreater: FuzzyDateInt, $startDateLesser: FuzzyDateInt, $page: Int, $perPage: Int) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        hasNextPage
+        currentPage
+        lastPage
+      }
       media(
         type: MANGA, 
         genre_in: $genres, 
-        seasonYear: $seasonYear,
-        sort: SCORE_DESC,
-        averageScore_greater: 60
+        startDate_greater: $startDateGreater,
+        startDate_lesser: $startDateLesser,
+        sort: [SCORE_DESC, POPULARITY_DESC],
+        averageScore_greater: 50
       ) {
         id
         idMal
@@ -304,16 +316,17 @@ export const searchMangaAniList = async (query: string): Promise<AniListManga[]>
   return data.data.Page.media;
 };
 
-export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListAnime[]> => {
-  let seasonYear = null;
+export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: string, page: number = 1): Promise<{ data: AniListAnime[], hasNextPage: boolean }> => {
+  let startDateGreater = null;
+  let startDateLesser = null;
   
   if (yearRange !== 'any') {
     const [start, end] = yearRange.split('-').map(y => parseInt(y));
-    // Use the middle year of the range for seasonYear
-    seasonYear = Math.floor((start + end) / 2);
+    startDateGreater = start * 10000 + 101; // January 1st of start year
+    startDateLesser = (end + 1) * 10000 + 101; // January 1st of year after end
   }
 
-  console.log('Fetching anime with genres:', genres, 'and seasonYear:', seasonYear);
+  console.log('Fetching anime with genres:', genres, 'year range:', yearRange, 'page:', page);
 
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -322,7 +335,13 @@ export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: str
     },
     body: JSON.stringify({
       query: ANIME_BY_GENRE_QUERY,
-      variables: { genres, seasonYear },
+      variables: { 
+        genres, 
+        startDateGreater, 
+        startDateLesser,
+        page,
+        perPage: 12
+      },
     }),
   });
 
@@ -336,24 +355,30 @@ export const fetchAnimeByGenresAniList = async (genres: string[], yearRange: str
   
   if (data.errors) {
     console.error('GraphQL errors:', data.errors);
-    return [];
+    return { data: [], hasNextPage: false };
   }
   
-  return data.data.Page.media.filter((anime: AniListAnime) => 
+  const filteredData = data.data.Page.media.filter((anime: AniListAnime) => 
     anime.title && anime.coverImage && anime.genres && anime.genres.length > 0
   );
+  
+  return {
+    data: filteredData,
+    hasNextPage: data.data.Page.pageInfo.hasNextPage
+  };
 };
 
-export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string): Promise<AniListManga[]> => {
-  let seasonYear = null;
+export const fetchMangaByGenresAniList = async (genres: string[], yearRange: string, page: number = 1): Promise<{ data: AniListManga[], hasNextPage: boolean }> => {
+  let startDateGreater = null;
+  let startDateLesser = null;
   
   if (yearRange !== 'any') {
     const [start, end] = yearRange.split('-').map(y => parseInt(y));
-    // Use the middle year of the range for seasonYear
-    seasonYear = Math.floor((start + end) / 2);
+    startDateGreater = start * 10000 + 101; // January 1st of start year
+    startDateLesser = (end + 1) * 10000 + 101; // January 1st of year after end
   }
 
-  console.log('Fetching manga with genres:', genres, 'and seasonYear:', seasonYear);
+  console.log('Fetching manga with genres:', genres, 'year range:', yearRange, 'page:', page);
 
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -362,7 +387,13 @@ export const fetchMangaByGenresAniList = async (genres: string[], yearRange: str
     },
     body: JSON.stringify({
       query: MANGA_BY_GENRE_QUERY,
-      variables: { genres, seasonYear },
+      variables: { 
+        genres, 
+        startDateGreater, 
+        startDateLesser,
+        page,
+        perPage: 12
+      },
     }),
   });
 
@@ -376,10 +407,15 @@ export const fetchMangaByGenresAniList = async (genres: string[], yearRange: str
   
   if (data.errors) {
     console.error('GraphQL errors:', data.errors);
-    return [];
+    return { data: [], hasNextPage: false };
   }
   
-  return data.data.Page.media.filter((manga: AniListManga) => 
+  const filteredData = data.data.Page.media.filter((manga: AniListManga) => 
     manga.title && manga.coverImage && manga.genres && manga.genres.length > 0
   );
+  
+  return {
+    data: filteredData,
+    hasNextPage: data.data.Page.pageInfo.hasNextPage
+  };
 };
