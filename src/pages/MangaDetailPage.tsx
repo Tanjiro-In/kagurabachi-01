@@ -70,6 +70,10 @@ const MangaDetailPage = () => {
     retry: 1,
   });
 
+  const handleBackToHome = () => {
+    navigate('/');
+  };
+
   if (mangaLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -81,14 +85,14 @@ const MangaDetailPage = () => {
   if (mangaError || !mangaData?.data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl font-bold text-foreground">Manga not found</h2>
-          <p className="text-muted-foreground">
+        <div className="text-center space-y-4 px-4">
+          <h2 className="text-xl md:text-2xl font-bold text-foreground">Manga not found</h2>
+          <p className="text-sm md:text-base text-muted-foreground">
             This manga might not be available in our database or the ID might be incorrect.
           </p>
           <button 
-            onClick={() => navigate('/')}
-            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors"
+            onClick={handleBackToHome}
+            className="bg-primary text-primary-foreground px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-primary/90 transition-colors text-sm md:text-base"
           >
             Return Home
           </button>
@@ -102,8 +106,8 @@ const MangaDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <div className="relative h-96 overflow-hidden">
+      {/* Optimized Hero Section for Mobile */}
+      <div className="relative h-48 sm:h-64 md:h-96 overflow-hidden">
         <img
           src={manga.images.jpg.large_image_url}
           alt={manga.title}
@@ -111,40 +115,43 @@ const MangaDetailPage = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
         
-        <div className="absolute top-8 left-8">
+        {/* Enhanced Back Button with Better Mobile Positioning */}
+        <div className="absolute top-3 left-3 md:top-8 md:left-8 z-20">
           <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 bg-card/80 backdrop-blur-sm text-foreground px-4 py-2 rounded-lg hover:bg-card transition-colors"
+            onClick={handleBackToHome}
+            className="flex items-center gap-1.5 md:gap-2 bg-black/80 backdrop-blur-sm text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-black/90 transition-colors text-sm md:text-base border border-white/20"
           >
-            <ArrowLeft size={20} />
-            Back to Home
+            <ArrowLeft size={16} className="md:w-5 md:h-5" />
+            <span className="hidden sm:inline">Back to Home</span>
+            <span className="sm:hidden">Back</span>
           </button>
         </div>
 
-        <div className="absolute bottom-8 left-8 right-8">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
+        {/* Optimized Content Layout for Mobile */}
+        <div className="absolute bottom-3 sm:bottom-4 md:bottom-8 left-3 sm:left-4 md:left-8 right-3 sm:right-4 md:right-8">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-8 items-center sm:items-start">
             <img
               src={manga.images.jpg.large_image_url}
               alt={manga.title}
-              className="w-48 h-64 object-cover rounded-xl shadow-2xl"
+              className="w-24 h-32 sm:w-32 sm:h-44 md:w-48 md:h-64 object-cover rounded-lg md:rounded-xl shadow-2xl"
             />
-            <div className="space-y-4 flex-1">
-              <h1 className="text-4xl md:text-6xl font-bold gradient-text">
+            <div className="space-y-1 sm:space-y-2 md:space-y-4 flex-1 text-center sm:text-left min-w-0">
+              <h1 className="text-lg sm:text-2xl md:text-4xl lg:text-6xl font-bold gradient-text leading-tight">
                 {manga.title}
               </h1>
-              <div className="flex flex-wrap gap-4 text-muted-foreground">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-1 sm:gap-2 md:gap-4 text-xs sm:text-sm md:text-base text-muted-foreground">
                 <span>{manga.published?.from ? new Date(manga.published.from).getFullYear() : 'Unknown Year'}</span>
                 <span>•</span>
                 <span>{manga.chapters ? `${manga.chapters} Chapters` : 'Unknown Chapters'}</span>
                 <span>•</span>
-                <span>{manga.status}</span>
+                <span className="truncate max-w-20 sm:max-w-none">{manga.status}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-12 space-y-12">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-12 space-y-6 sm:space-y-8 md:space-y-12">
         {/* Image Gallery */}
         {!picturesLoading && (
           <ImageGallery images={pictures} title={manga.title} />

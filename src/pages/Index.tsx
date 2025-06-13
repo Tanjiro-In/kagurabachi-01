@@ -1,6 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'react-router-dom';
 import SearchBar from '../components/SearchBar';
 import MangaSearchBar from '../components/MangaSearchBar';
 import AIRecommendations from '../components/AIRecommendations';
@@ -8,6 +8,7 @@ import RecommendationSections from '../components/RecommendationSections';
 import TrendingSection from '../components/TrendingSection';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AnimeCard from '../components/AnimeCard';
+import { usePageState } from '../hooks/usePageState';
 import { 
   fetchTrendingAnimeAniList, 
   fetchTrendingMangaAniList, 
@@ -29,35 +30,10 @@ const createMockGenres = () => {
 };
 
 const Index = () => {
-  const location = useLocation();
-  const [animeSearchQuery, setAnimeSearchQuery] = useState('');
-  const [mangaSearchQuery, setMangaSearchQuery] = useState('');
-  const [animeSearchResults, setAnimeSearchResults] = useState<any[]>([]);
-  const [mangaSearchResults, setMangaSearchResults] = useState<any[]>([]);
-  const [isSearchingAnime, setIsSearchingAnime] = useState(false);
-  const [isSearchingManga, setIsSearchingManga] = useState(false);
-  const [animeRecommendations, setAnimeRecommendations] = useState<any[]>([]);
-  const [mangaRecommendations, setMangaRecommendations] = useState<any[]>([]);
+  const { pageState, updatePageState, resetPageState } = usePageState();
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
-  const [hasRecommendations, setHasRecommendations] = useState(false);
-  const [currentGenres, setCurrentGenres] = useState<string[]>([]);
-  const [currentYearRange, setCurrentYearRange] = useState<string>('any');
-  const [animeCurrentPage, setAnimeCurrentPage] = useState(1);
-  const [mangaCurrentPage, setMangaCurrentPage] = useState(1);
-  const [hasMoreAnime, setHasMoreAnime] = useState(false);
-  const [hasMoreManga, setHasMoreManga] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
-
-  // Reset only search results when coming back to home page, but keep recommendations
-  useEffect(() => {
-    if (location.pathname === '/') {
-      setIsSearchingAnime(false);
-      setIsSearchingManga(false);
-      setAnimeSearchResults([]);
-      setMangaSearchResults([]);
-    }
-  }, [location.pathname]);
 
   // Fetch trending anime from AniList
   const {
@@ -85,66 +61,83 @@ const Index = () => {
 
   const handleAnimeSearch = async (query: string) => {
     if (!query.trim()) {
-      setAnimeSearchResults([]);
-      setIsSearchingAnime(false);
+      updatePageState({
+        animeSearchResults: [],
+        isSearchingAnime: false,
+        animeSearchQuery: ''
+      });
       return;
     }
-    setIsSearchingAnime(true);
-    setAnimeSearchQuery(query);
-    setHasRecommendations(false);
+    
+    updatePageState({
+      isSearchingAnime: true,
+      animeSearchQuery: query,
+      hasRecommendations: false
+    });
+    
     try {
       const data = await searchAnimeAniList(query);
-      setAnimeSearchResults(data.map(convertAniListToJikan));
+      updatePageState({
+        animeSearchResults: data.map(convertAniListToJikan)
+      });
     } catch (error) {
       console.error('Anime search failed:', error);
-      setAnimeSearchResults([]);
+      updatePageState({
+        animeSearchResults: []
+      });
     }
   };
 
   const handleMangaSearch = async (query: string) => {
     if (!query.trim()) {
-      setMangaSearchResults([]);
-      setIsSearchingManga(false);
+      updatePageState({
+        mangaSearchResults: [],
+        isSearchingManga: false,
+        mangaSearchQuery: ''
+      });
       return;
     }
-    setIsSearchingManga(true);
-    setMangaSearchQuery(query);
-    setHasRecommendations(false);
+    
+    updatePageState({
+      isSearchingManga: true,
+      mangaSearchQuery: query,
+      hasRecommendations: false
+    });
+    
     try {
       const data = await searchMangaAniList(query);
-      setMangaSearchResults(data.map(convertAniListToJikan));
+      updatePageState({
+        mangaSearchResults: data.map(convertAniListToJikan)
+      });
     } catch (error) {
       console.error('Manga search failed:', error);
-      setMangaSearchResults([]);
+      updatePageState({
+        mangaSearchResults: []
+      });
     }
   };
 
   const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
     // Handle reset case
     if (yearRange === 'reset') {
-      setHasRecommendations(false);
-      setAnimeRecommendations([]);
-      setMangaRecommendations([]);
+      resetPageState();
       setIsLoadingRecommendations(false);
-      setCurrentGenres([]);
-      setCurrentYearRange('any');
-      setAnimeCurrentPage(1);
-      setMangaCurrentPage(1);
-      setHasMoreAnime(false);
-      setHasMoreManga(false);
       return;
     }
 
     console.log('Starting recommendation request with genres:', genres, 'and year:', yearRange);
     setIsLoadingRecommendations(true);
-    setIsSearchingAnime(false);
-    setIsSearchingManga(false);
-    setAnimeSearchResults([]);
-    setMangaSearchResults([]);
-    setCurrentGenres(genres);
-    setCurrentYearRange(yearRange);
-    setAnimeCurrentPage(1);
-    setMangaCurrentPage(1);
+    
+    updatePageState({
+      isSearchingAnime: false,
+      isSearchingManga: false,
+      animeSearchResults: [],
+      mangaSearchResults: [],
+      currentGenres: genres,
+      currentYearRange: yearRange,
+      animeCurrentPage: 1,
+      mangaCurrentPage: 1
+    });
 
     try {
       const [animeResult, mangaResult] = await Promise.all([
@@ -155,34 +148,40 @@ const Index = () => {
       console.log('Final anime recommendations:', animeResult.data);
       console.log('Final manga recommendations:', mangaResult.data);
       
-      setAnimeRecommendations(animeResult.data.map(convertAniListToJikan));
-      setMangaRecommendations(mangaResult.data.map(convertAniListToJikan));
-      setHasMoreAnime(animeResult.hasNextPage);
-      setHasMoreManga(mangaResult.hasNextPage);
-      setHasRecommendations(true);
+      updatePageState({
+        animeRecommendations: animeResult.data.map(convertAniListToJikan),
+        mangaRecommendations: mangaResult.data.map(convertAniListToJikan),
+        hasMoreAnime: animeResult.hasNextPage,
+        hasMoreManga: mangaResult.hasNextPage,
+        hasRecommendations: true
+      });
     } catch (error) {
       console.error('Recommendation fetch failed:', error);
-      setAnimeRecommendations([]);
-      setMangaRecommendations([]);
-      setHasMoreAnime(false);
-      setHasMoreManga(false);
-      setHasRecommendations(true);
+      updatePageState({
+        animeRecommendations: [],
+        mangaRecommendations: [],
+        hasMoreAnime: false,
+        hasMoreManga: false,
+        hasRecommendations: true
+      });
     } finally {
       setIsLoadingRecommendations(false);
     }
   };
 
   const handleLoadMoreAnime = async () => {
-    if (isLoadingMoreAnime || !hasMoreAnime) return;
+    if (isLoadingMoreAnime || !pageState.hasMoreAnime) return;
     
     setIsLoadingMoreAnime(true);
-    const nextPage = animeCurrentPage + 1;
+    const nextPage = pageState.animeCurrentPage + 1;
     
     try {
-      const result = await fetchAnimeByGenresAniList(currentGenres, currentYearRange, nextPage);
-      setAnimeRecommendations(prev => [...prev, ...result.data.map(convertAniListToJikan)]);
-      setHasMoreAnime(result.hasNextPage);
-      setAnimeCurrentPage(nextPage);
+      const result = await fetchAnimeByGenresAniList(pageState.currentGenres, pageState.currentYearRange, nextPage);
+      updatePageState({
+        animeRecommendations: [...pageState.animeRecommendations, ...result.data.map(convertAniListToJikan)],
+        hasMoreAnime: result.hasNextPage,
+        animeCurrentPage: nextPage
+      });
     } catch (error) {
       console.error('Failed to load more anime:', error);
     } finally {
@@ -191,16 +190,18 @@ const Index = () => {
   };
 
   const handleLoadMoreManga = async () => {
-    if (isLoadingMoreManga || !hasMoreManga) return;
+    if (isLoadingMoreManga || !pageState.hasMoreManga) return;
     
     setIsLoadingMoreManga(true);
-    const nextPage = mangaCurrentPage + 1;
+    const nextPage = pageState.mangaCurrentPage + 1;
     
     try {
-      const result = await fetchMangaByGenresAniList(currentGenres, currentYearRange, nextPage);
-      setMangaRecommendations(prev => [...prev, ...result.data.map(convertAniListToJikan)]);
-      setHasMoreManga(result.hasNextPage);
-      setMangaCurrentPage(nextPage);
+      const result = await fetchMangaByGenresAniList(pageState.currentGenres, pageState.currentYearRange, nextPage);
+      updatePageState({
+        mangaRecommendations: [...pageState.mangaRecommendations, ...result.data.map(convertAniListToJikan)],
+        hasMoreManga: result.hasNextPage,
+        mangaCurrentPage: nextPage
+      });
     } catch (error) {
       console.error('Failed to load more manga:', error);
     } finally {
@@ -249,29 +250,29 @@ const Index = () => {
         />
 
         {/* AI Recommendation Results */}
-        {hasRecommendations && (
+        {pageState.hasRecommendations && (
           <RecommendationSections
-            animeRecommendations={animeRecommendations}
-            mangaRecommendations={mangaRecommendations}
+            animeRecommendations={pageState.animeRecommendations}
+            mangaRecommendations={pageState.mangaRecommendations}
             isLoading={isLoadingRecommendations}
             onLoadMoreAnime={handleLoadMoreAnime}
             onLoadMoreManga={handleLoadMoreManga}
-            hasMoreAnime={hasMoreAnime}
-            hasMoreManga={hasMoreManga}
+            hasMoreAnime={pageState.hasMoreAnime}
+            hasMoreManga={pageState.hasMoreManga}
             isLoadingMoreAnime={isLoadingMoreAnime}
             isLoadingMoreManga={isLoadingMoreManga}
           />
         )}
 
         {/* Anime Search Results */}
-        {isSearchingAnime && (
+        {pageState.isSearchingAnime && (
           <section className="space-y-4 md:space-y-6">
             <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
-              Anime Results for "{animeSearchQuery}"
+              Anime Results for "{pageState.animeSearchQuery}"
             </h2>
-            {animeSearchResults.length > 0 ? (
+            {pageState.animeSearchResults.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-                {animeSearchResults.map(anime => (
+                {pageState.animeSearchResults.map(anime => (
                   <AnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
@@ -284,14 +285,14 @@ const Index = () => {
         )}
 
         {/* Manga Search Results */}
-        {isSearchingManga && (
+        {pageState.isSearchingManga && (
           <section className="space-y-4 md:space-y-6">
             <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
-              Manga Results for "{mangaSearchQuery}"
+              Manga Results for "{pageState.mangaSearchQuery}"
             </h2>
-            {mangaSearchResults.length > 0 ? (
+            {pageState.mangaSearchResults.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
-                {mangaSearchResults.map(manga => (
+                {pageState.mangaSearchResults.map(manga => (
                   <AnimeCard key={manga.mal_id} anime={manga} />
                 ))}
               </div>
@@ -304,7 +305,7 @@ const Index = () => {
         )}
 
         {/* Trending Content - only show if not searching or getting recommendations */}
-        {!isSearchingAnime && !isSearchingManga && !hasRecommendations && (
+        {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
           <>
             {/* Trending Anime */}
             {trendingAnimeLoading ? (
