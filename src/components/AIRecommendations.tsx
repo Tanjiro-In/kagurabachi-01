@@ -19,11 +19,12 @@ const POPULAR_GENRES = [
 ];
 
 const YEAR_RANGES = [
-  { label: 'Recent (2020-2024)', value: '2020-2024' },
-  { label: 'Modern (2010-2019)', value: '2010-2019' },
-  { label: 'Classic (2000-2009)', value: '2000-2009' },
-  { label: 'Retro (1990-1999)', value: '1990-1999' },
-  { label: 'Any Year', value: 'any' }
+  { value: '', label: '-None-' },
+  { value: '2020-2024', label: 'Modern (2020+)' },
+  { value: '2010-2019', label: '2010s' },
+  { value: '2000-2009', label: '2000s' },
+  { value: '1990-1999', label: '90s' },
+  { value: '1980-1989', label: '80s' },
 ];
 
 const AIRecommendations: React.FC<AIRecommendationsProps> = ({ 

@@ -106,8 +106,8 @@ const AnimeDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <div className="relative h-64 md:h-96 overflow-hidden">
+      {/* Optimized Hero Section for Mobile */}
+      <div className="relative h-48 sm:h-64 md:h-96 overflow-hidden">
         <img
           src={anime.images.jpg.large_image_url}
           alt={anime.title}
@@ -115,40 +115,43 @@ const AnimeDetailPage = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
         
-        <div className="absolute top-4 md:top-8 left-4 md:left-8">
+        {/* Enhanced Back Button with Better Mobile Positioning */}
+        <div className="absolute top-3 left-3 md:top-8 md:left-8 z-20">
           <button
             onClick={handleBackToHome}
-            className="flex items-center gap-2 bg-card/80 backdrop-blur-sm text-foreground px-3 md:px-4 py-2 rounded-lg hover:bg-card transition-colors text-sm md:text-base"
+            className="flex items-center gap-1.5 md:gap-2 bg-black/80 backdrop-blur-sm text-white px-3 py-2 md:px-4 md:py-2 rounded-lg hover:bg-black/90 transition-colors text-sm md:text-base border border-white/20"
           >
             <ArrowLeft size={16} className="md:w-5 md:h-5" />
-            Back to Home
+            <span className="hidden sm:inline">Back to Home</span>
+            <span className="sm:hidden">Back</span>
           </button>
         </div>
 
-        <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 right-4 md:right-8">
-          <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-start">
+        {/* Optimized Content Layout for Mobile */}
+        <div className="absolute bottom-3 sm:bottom-4 md:bottom-8 left-3 sm:left-4 md:left-8 right-3 sm:right-4 md:right-8">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-8 items-center sm:items-start">
             <img
               src={anime.images.jpg.large_image_url}
               alt={anime.title}
-              className="w-32 h-44 md:w-48 md:h-64 object-cover rounded-xl shadow-2xl mx-auto md:mx-0"
+              className="w-24 h-32 sm:w-32 sm:h-44 md:w-48 md:h-64 object-cover rounded-lg md:rounded-xl shadow-2xl"
             />
-            <div className="space-y-2 md:space-y-4 flex-1 text-center md:text-left">
-              <h1 className="text-2xl md:text-4xl lg:text-6xl font-bold gradient-text">
+            <div className="space-y-1 sm:space-y-2 md:space-y-4 flex-1 text-center sm:text-left min-w-0">
+              <h1 className="text-lg sm:text-2xl md:text-4xl lg:text-6xl font-bold gradient-text leading-tight">
                 {anime.title}
               </h1>
-              <div className="flex flex-wrap justify-center md:justify-start gap-2 md:gap-4 text-xs md:text-base text-muted-foreground">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-1 sm:gap-2 md:gap-4 text-xs sm:text-sm md:text-base text-muted-foreground">
                 <span>{anime.year || 'Unknown Year'}</span>
                 <span>•</span>
                 <span>{anime.episodes ? `${anime.episodes} Episodes` : 'Unknown Episodes'}</span>
                 <span>•</span>
-                <span>{anime.status}</span>
+                <span className="truncate max-w-20 sm:max-w-none">{anime.status}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 space-y-8 md:space-y-12">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-12 space-y-6 sm:space-y-8 md:space-y-12">
         {/* Image Gallery */}
         {!picturesLoading && (
           <ImageGallery images={pictures} title={anime.title} />
