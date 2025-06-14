@@ -35,20 +35,30 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
   const handleCardClick = () => {
     const id = anime.mal_id;
     
-    // Better detection logic for manga vs anime
+    // Enhanced detection logic for manga vs anime
     const isManga = 
-      anime.type === 'Manga' || 
-      anime.type === 'MANGA' ||
-      anime.type === 'manga' ||
-      anime.type === 'Manhwa' ||
-      anime.type === 'Manhua' ||
-      anime.type === 'Novel' ||
-      anime.type === 'Light Novel' ||
-      anime.type === 'One-shot' ||
-      // If it has chapters/volumes but no episodes, it's likely manga
-      ((anime.chapters || anime.volumes) && !anime.episodes) ||
-      // If it has published date but no episodes, it's likely manga
-      (anime.published && !anime.episodes);
+      // Direct type checks (case insensitive)
+      anime.type?.toLowerCase().includes('manga') ||
+      anime.type?.toLowerCase().includes('manhwa') ||
+      anime.type?.toLowerCase().includes('manhua') ||
+      anime.type?.toLowerCase().includes('novel') ||
+      anime.type?.toLowerCase().includes('one-shot') ||
+      anime.type?.toLowerCase().includes('doujin') ||
+      
+      // Check if it has manga-specific properties but no anime properties
+      ((anime.chapters || anime.volumes) && !anime.episodes && !anime.aired) ||
+      
+      // If it has published date but no aired date, it's likely manga
+      (anime.published && !anime.aired) ||
+      
+      // If it has authors but no studios, it's likely manga
+      (anime.authors && !anime.studios) ||
+      
+      // Additional safety check: if episodes is null/undefined but chapters exist
+      (anime.episodes === null && anime.chapters) ||
+      (anime.episodes === undefined && anime.chapters);
+    
+    console.log(`Content ${id} - Type: ${anime.type}, Episodes: ${anime.episodes}, Chapters: ${anime.chapters}, Volumes: ${anime.volumes}, isManga: ${isManga}`);
     
     if (isManga) {
       navigate(`/manga/${id}`);
