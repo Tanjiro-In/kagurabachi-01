@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -77,7 +78,7 @@ const AnimeDetailPage = () => {
     // Mark navigation state to preserve home page state
     if (window.history.pushState) {
       window.history.replaceState(
-        { ...window.history.state, fromDetailPage: true },
+        { ...(window.history.state || {}), fromDetailPage: true },
         ''
       );
     }
