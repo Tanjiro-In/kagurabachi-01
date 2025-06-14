@@ -1,5 +1,4 @@
-
-import { AniListAnime, AniListManga } from '../services/anilistApi';
+import { AniListAnime, AniListManga } from '../services/types';
 
 export const convertAniListToJikan = (item: AniListAnime | AniListManga) => {
   return {
