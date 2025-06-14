@@ -58,6 +58,8 @@ const AnimeDetailPage = () => {
   
   // Add scroll restoration for this page only
   useScrollRestoration(`anime-detail-${id}`);
+  useScrollRestoration('anime-list');
+
 
   const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
     queryKey: ['anime-details', id],
@@ -89,7 +91,7 @@ const AnimeDetailPage = () => {
       );
     }
     
-    navigate('/');
+    navigate(-1);
   };
 
   if (animeLoading) {
