@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -57,7 +56,7 @@ const AnimeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  // Add scroll restoration for this page
+  // Add scroll restoration for this page only
   useScrollRestoration(`anime-detail-${id}`);
 
   const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
@@ -75,6 +74,7 @@ const AnimeDetailPage = () => {
   });
 
   const handleBackToHome = () => {
+    console.log('Setting navigation state for home page preservation');
     // Mark navigation state to preserve home page state
     if (window.history.pushState) {
       window.history.replaceState(
