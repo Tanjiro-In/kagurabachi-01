@@ -24,32 +24,45 @@ export const useScrollRestoration = (key?: string) => {
       sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
     );
     
-    const position = {
+    scrollPositions[scrollKey] = {
       x: window.scrollX,
       y: window.scrollY,
       timestamp: Date.now()
     };
     
-    scrollPositions[scrollKey] = position;
     sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
-    
-    console.log(`Saved scroll position for ${scrollKey}:`, position);
   }, [scrollKey]);
 
-  // Simplified content ready check
-  const isContentReady = useCallback((): boolean => {
-    // Check if page has meaningful content
-    const hasContent = document.body.scrollHeight > window.innerHeight;
-    const hasElements = document.querySelectorAll('[data-scroll-content]').length > 0 || 
-                       document.querySelectorAll('.grid').length > 0 ||
-                       document.body.children.length > 2;
-    
-    return hasContent && hasElements;
+  // Wait for content to be ready
+  const waitForContent = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      const checkContent = () => {
+        // Check if page has content beyond the header
+        const hasContent = document.body.scrollHeight > window.innerHeight + 100;
+        
+        // Also check if images are loaded
+        const images = document.querySelectorAll('img');
+        const imagesLoaded = Array.from(images).every(img => img.complete);
+        
+        if (hasContent && imagesLoaded) {
+          resolve();
+        } else {
+          // Wait a bit more
+          setTimeout(checkContent, 100);
+        }
+      };
+      
+      // Start checking immediately
+      checkContent();
+      
+      // But also set a maximum wait time
+      setTimeout(() => resolve(), 2000);
+    });
   }, []);
 
-  // Restore scroll position with immediate and fallback attempts
-  const restoreScrollPosition = useCallback(() => {
-    if (typeof window === 'undefined' || hasRestoredRef.current) {
+  // Restore scroll position
+  const restoreScrollPosition = useCallback(async () => {
+    if (typeof window === 'undefined' || hasRestoredRef.current || isRestoringRef.current) {
       return;
     }
 
@@ -59,63 +72,38 @@ export const useScrollRestoration = (key?: string) => {
     
     const savedPosition: ScrollPosition & { timestamp?: number } = scrollPositions[scrollKey];
     
-    console.log(`Attempting to restore scroll for ${scrollKey}:`, savedPosition);
-    
-    if (!savedPosition || (savedPosition.x === 0 && savedPosition.y === 0)) {
-      console.log(`No saved position found for ${scrollKey}`);
-      return;
-    }
-
-    isRestoringRef.current = true;
-    hasRestoredRef.current = true;
-
-    const performRestore = () => {
-      console.log(`Restoring scroll to:`, savedPosition);
+    if (savedPosition && (savedPosition.x > 0 || savedPosition.y > 0)) {
+      isRestoringRef.current = true;
+      hasRestoredRef.current = true;
       
-      // Use scrollTo with immediate behavior
-      window.scrollTo({
-        left: savedPosition.x,
-        top: savedPosition.y,
-        behavior: 'auto'
+      console.log('Restoring scroll position:', savedPosition);
+      
+      // Wait for content to be ready
+      await waitForContent();
+      
+      // Use requestAnimationFrame for smoother restoration
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          left: savedPosition.x,
+          top: savedPosition.y,
+          behavior: 'auto' // Instant scroll, no animation
+        });
+        
+        // Verify restoration worked
+        setTimeout(() => {
+          const actualY = window.scrollY;
+          const targetY = savedPosition.y;
+          
+          if (Math.abs(actualY - targetY) > 50) {
+            console.log('Scroll restoration verification failed, retrying...');
+            window.scrollTo(savedPosition.x, savedPosition.y);
+          }
+          
+          isRestoringRef.current = false;
+        }, 100);
       });
-
-      // Verify restoration after a short delay
-      setTimeout(() => {
-        const actualY = window.scrollY;
-        const targetY = savedPosition.y;
-        const tolerance = 100;
-        
-        if (Math.abs(actualY - targetY) > tolerance) {
-          console.log(`Scroll restoration verification failed. Target: ${targetY}, Actual: ${actualY}. Retrying...`);
-          window.scrollTo(savedPosition.x, savedPosition.y);
-        } else {
-          console.log(`Scroll restoration successful. Position: ${actualY}`);
-        }
-        
-        isRestoringRef.current = false;
-      }, 100);
-    };
-
-    // Try immediate restoration
-    if (isContentReady()) {
-      console.log('Content ready, restoring immediately');
-      requestAnimationFrame(performRestore);
-    } else {
-      console.log('Content not ready, waiting...');
-      // Fallback with timeout
-      const checkAndRestore = () => {
-        if (isContentReady()) {
-          console.log('Content ready after wait, restoring');
-          requestAnimationFrame(performRestore);
-        } else {
-          console.log('Content still not ready, forcing restoration');
-          requestAnimationFrame(performRestore);
-        }
-      };
-      
-      setTimeout(checkAndRestore, 200);
     }
-  }, [scrollKey, isContentReady]);
+  }, [scrollKey, waitForContent]);
 
   // Handle scroll events
   useEffect(() => {
@@ -128,7 +116,7 @@ export const useScrollRestoration = (key?: string) => {
       }
       
       // Debounce save
-      saveTimeoutRef.current = setTimeout(saveScrollPosition, 150);
+      saveTimeoutRef.current = setTimeout(saveScrollPosition, 100);
     };
 
     const handleBeforeUnload = () => {
@@ -151,15 +139,13 @@ export const useScrollRestoration = (key?: string) => {
     };
   }, [saveScrollPosition]);
 
-  // Restore on mount with improved timing
+  // Restore on mount
   useEffect(() => {
-    console.log(`Scroll restoration hook mounted for key: ${scrollKey}`);
-    
     // Reset flags when route changes
     hasRestoredRef.current = false;
     isRestoringRef.current = false;
     
-    // Attempt restoration with minimal delay
+    // Restore scroll position after a short delay
     const timeoutId = setTimeout(() => {
       restoreScrollPosition();
     }, 50);
@@ -176,11 +162,8 @@ export const useScrollRestoration = (key?: string) => {
       sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
     );
     
-    const targetKey = keyToClear || scrollKey;
-    delete scrollPositions[targetKey];
+    delete scrollPositions[keyToClear || scrollKey];
     sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
-    
-    console.log(`Cleared scroll position for ${targetKey}`);
     
     hasRestoredRef.current = false;
     isRestoringRef.current = false;
