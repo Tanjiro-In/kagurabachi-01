@@ -1,11 +1,20 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import HeroSection from '../components/HeroSection';
 import AIRecommendations from '../components/AIRecommendations';
+import RecommendationSections from '../components/RecommendationSections';
+import SearchResultsSection from '../components/SearchResultsSection';
 import TrendingContentSection from '../components/TrendingContentSection';
+import { usePageState } from '../hooks/usePageState';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
-import { useQuery } from '@tanstack/react-query';
-import { fetchTrendingAnimeAniList, fetchTrendingMangaAniList } from '../services/anilistApi';
+import { 
+  fetchTrendingAnimeAniList, 
+  fetchTrendingMangaAniList, 
+  searchAnimeAniList, 
+  searchMangaAniList,
+  fetchAnimeByGenresAniList,
+  fetchMangaByGenresAniList
+} from '../services/anilistApi';
 import { convertAniListToJikan } from '../utils/dataConverter';
 
 // Keep some genres data for the AI recommendations component
@@ -19,10 +28,20 @@ const createMockGenres = () => {
 };
 
 const Index = () => {
-  const navigate = useNavigate();
-  
-  // Use home page scroll restoration
-  useScrollRestoration('/');
+  const { pageState, updatePageState, resetPageState, updateExpandedState, updateLoadingState } = usePageState();
+  // Use default scroll key (pathname) instead of 'home' for consistency
+  const { clearScrollPosition } = useScrollRestoration();
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
+  const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false);
+
+  // Clear scroll position only when explicitly resetting
+  const handleReset = () => {
+    resetPageState();
+    clearScrollPosition();
+    setIsLoadingRecommendations(false);
+  };
 
   // Fetch trending anime from AniList
   const {
@@ -48,21 +67,187 @@ const Index = () => {
     }
   });
 
+  // Mark content as loaded when data is available and notify scroll restoration
+  useEffect(() => {
+    const hasData = trendingAnimeData || trendingMangaData || 
+                   pageState.animeSearchResults.length > 0 || 
+                   pageState.mangaSearchResults.length > 0 ||
+                   pageState.animeRecommendations.length > 0 ||
+                   pageState.mangaRecommendations.length > 0;
+    
+    if (hasData && !contentLoaded) {
+      // Mark content as loaded for scroll restoration
+      setTimeout(() => {
+        setContentLoaded(true);
+        // Signal that content is ready for scroll restoration
+        window.dispatchEvent(new CustomEvent('home-content-ready', {
+          detail: { 
+            section: pageState.lastActiveSection,
+            hasSearchResults: pageState.isSearchingAnime || pageState.isSearchingManga,
+            hasRecommendations: pageState.hasRecommendations
+          }
+        }));
+      }, 100);
+    }
+  }, [trendingAnimeData, trendingMangaData, pageState, contentLoaded]);
+
   const handleAnimeSearch = async (query: string) => {
-    navigate(`/search/anime?q=${encodeURIComponent(query)}`);
+    if (!query.trim()) {
+      updatePageState({
+        animeSearchResults: [],
+        isSearchingAnime: false,
+        animeSearchQuery: ''
+      });
+      return;
+    }
+    
+    updatePageState({
+      isSearchingAnime: true,
+      animeSearchQuery: query,
+      hasRecommendations: false
+    });
+    
+    updateLoadingState('animeSearch', true);
+    
+    try {
+      const data = await searchAnimeAniList(query);
+      updatePageState({
+        animeSearchResults: data.map(convertAniListToJikan)
+      });
+    } catch (error) {
+      console.error('Anime search failed:', error);
+      updatePageState({
+        animeSearchResults: []
+      });
+    } finally {
+      updateLoadingState('animeSearch', false);
+    }
   };
 
   const handleMangaSearch = async (query: string) => {
-    navigate(`/search/manga?q=${encodeURIComponent(query)}`);
+    if (!query.trim()) {
+      updatePageState({
+        mangaSearchResults: [],
+        isSearchingManga: false,
+        mangaSearchQuery: ''
+      });
+      return;
+    }
+    
+    updatePageState({
+      isSearchingManga: true,
+      mangaSearchQuery: query,
+      hasRecommendations: false
+    });
+    
+    updateLoadingState('mangaSearch', true);
+    
+    try {
+      const data = await searchMangaAniList(query);
+      updatePageState({
+        mangaSearchResults: data.map(convertAniListToJikan)
+      });
+    } catch (error) {
+      console.error('Manga search failed:', error);
+      updatePageState({
+        mangaSearchResults: []
+      });
+    } finally {
+      updateLoadingState('mangaSearch', false);
+    }
   };
 
   const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
+    // Handle reset case
     if (yearRange === 'reset') {
+      handleReset();
       return;
     }
 
-    const genresParam = genres.join(',');
-    navigate(`/recommendations?genres=${encodeURIComponent(genresParam)}&year=${encodeURIComponent(yearRange)}`);
+    console.log('Starting recommendation request with genres:', genres, 'and year:', yearRange);
+    setIsLoadingRecommendations(true);
+    updateLoadingState('recommendations', true);
+    
+    updatePageState({
+      isSearchingAnime: false,
+      isSearchingManga: false,
+      animeSearchResults: [],
+      mangaSearchResults: [],
+      currentGenres: genres,
+      currentYearRange: yearRange,
+      animeCurrentPage: 1,
+      mangaCurrentPage: 1
+    });
+
+    try {
+      const [animeResult, mangaResult] = await Promise.all([
+        fetchAnimeByGenresAniList(genres, yearRange, 1),
+        fetchMangaByGenresAniList(genres, yearRange, 1)
+      ]);
+      
+      console.log('Final anime recommendations:', animeResult.data);
+      console.log('Final manga recommendations:', mangaResult.data);
+      
+      updatePageState({
+        animeRecommendations: animeResult.data.map(convertAniListToJikan),
+        mangaRecommendations: mangaResult.data.map(convertAniListToJikan),
+        hasMoreAnime: animeResult.hasNextPage,
+        hasMoreManga: mangaResult.hasNextPage,
+        hasRecommendations: true
+      });
+    } catch (error) {
+      console.error('Recommendation fetch failed:', error);
+      updatePageState({
+        animeRecommendations: [],
+        mangaRecommendations: [],
+        hasMoreAnime: false,
+        hasMoreManga: false,
+        hasRecommendations: true
+      });
+    } finally {
+      setIsLoadingRecommendations(false);
+      updateLoadingState('recommendations', false);
+    }
+  };
+
+  const handleLoadMoreAnime = async () => {
+    if (isLoadingMoreAnime || !pageState.hasMoreAnime) return;
+    
+    setIsLoadingMoreAnime(true);
+    const nextPage = pageState.animeCurrentPage + 1;
+    
+    try {
+      const result = await fetchAnimeByGenresAniList(pageState.currentGenres, pageState.currentYearRange, nextPage);
+      updatePageState({
+        animeRecommendations: [...pageState.animeRecommendations, ...result.data.map(convertAniListToJikan)],
+        hasMoreAnime: result.hasNextPage,
+        animeCurrentPage: nextPage
+      });
+    } catch (error) {
+      console.error('Failed to load more anime:', error);
+    } finally {
+      setIsLoadingMoreAnime(false);
+    }
+  };
+
+  const handleLoadMoreManga = async () => {
+    if (isLoadingMoreManga || !pageState.hasMoreManga) return;
+    
+    setIsLoadingMoreManga(true);
+    const nextPage = pageState.mangaCurrentPage + 1;
+    
+    try {
+      const result = await fetchMangaByGenresAniList(pageState.currentGenres, pageState.currentYearRange, nextPage);
+      updatePageState({
+        mangaRecommendations: [...pageState.mangaRecommendations, ...result.data.map(convertAniListToJikan)],
+        hasMoreManga: result.hasNextPage,
+        mangaCurrentPage: nextPage
+      });
+    } catch (error) {
+      console.error('Failed to load more manga:', error);
+    } finally {
+      setIsLoadingMoreManga(false);
+    }
   };
 
   const mockGenres = createMockGenres();
@@ -81,13 +266,40 @@ const Index = () => {
           isLoading={false} 
         />
 
-        {/* Trending Content */}
-        <TrendingContentSection
-          trendingAnimeData={trendingAnimeData}
-          trendingMangaData={trendingMangaData}
-          trendingAnimeLoading={trendingAnimeLoading}
-          trendingMangaLoading={trendingMangaLoading}
+        {/* AI Recommendation Results */}
+        {pageState.hasRecommendations && (
+          <RecommendationSections
+            animeRecommendations={pageState.animeRecommendations}
+            mangaRecommendations={pageState.mangaRecommendations}
+            isLoading={isLoadingRecommendations}
+            onLoadMoreAnime={handleLoadMoreAnime}
+            onLoadMoreManga={handleLoadMoreManga}
+            hasMoreAnime={pageState.hasMoreAnime}
+            hasMoreManga={pageState.hasMoreManga}
+            isLoadingMoreAnime={isLoadingMoreAnime}
+            isLoadingMoreManga={isLoadingMoreManga}
+          />
+        )}
+
+        {/* Search Results */}
+        <SearchResultsSection
+          isSearchingAnime={pageState.isSearchingAnime}
+          isSearchingManga={pageState.isSearchingManga}
+          animeSearchQuery={pageState.animeSearchQuery}
+          mangaSearchQuery={pageState.mangaSearchQuery}
+          animeSearchResults={pageState.animeSearchResults}
+          mangaSearchResults={pageState.mangaSearchResults}
         />
+
+        {/* Trending Content - only show if not searching or getting recommendations */}
+        {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
+          <TrendingContentSection
+            trendingAnimeData={trendingAnimeData}
+            trendingMangaData={trendingMangaData}
+            trendingAnimeLoading={trendingAnimeLoading}
+            trendingMangaLoading={trendingMangaLoading}
+          />
+        )}
       </div>
     </div>
   );
