@@ -35,7 +35,6 @@ const Index = () => {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
-  const [contentLoaded, setContentLoaded] = useState(false);
 
   // Clear scroll position only when explicitly resetting
   const handleReset = () => {
