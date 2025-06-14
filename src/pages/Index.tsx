@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchBar from '../components/SearchBar';
@@ -32,7 +31,7 @@ const createMockGenres = () => {
 
 const Index = () => {
   const { pageState, updatePageState, resetPageState, updateExpandedState, updateLoadingState } = usePageState();
-  const { clearScrollPosition } = useScrollRestoration('home');
+  const { clearScrollPosition } = useScrollRestoration('/');
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
@@ -40,6 +39,7 @@ const Index = () => {
 
   // Clear scroll position only when explicitly resetting
   const handleReset = () => {
+    console.log('Handling reset - clearing state and scroll position');
     resetPageState();
     clearScrollPosition();
     setIsLoadingRecommendations(false);
@@ -273,7 +273,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20">
+      <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20" data-scroll-content>
         {/* AI Recommendations */}
         <AIRecommendations 
           animeGenres={mockGenres} 
@@ -284,22 +284,24 @@ const Index = () => {
 
         {/* AI Recommendation Results */}
         {pageState.hasRecommendations && (
-          <RecommendationSections
-            animeRecommendations={pageState.animeRecommendations}
-            mangaRecommendations={pageState.mangaRecommendations}
-            isLoading={isLoadingRecommendations}
-            onLoadMoreAnime={handleLoadMoreAnime}
-            onLoadMoreManga={handleLoadMoreManga}
-            hasMoreAnime={pageState.hasMoreAnime}
-            hasMoreManga={pageState.hasMoreManga}
-            isLoadingMoreAnime={isLoadingMoreAnime}
-            isLoadingMoreManga={isLoadingMoreManga}
-          />
+          <div data-scroll-content>
+            <RecommendationSections
+              animeRecommendations={pageState.animeRecommendations}
+              mangaRecommendations={pageState.mangaRecommendations}
+              isLoading={isLoadingRecommendations}
+              onLoadMoreAnime={handleLoadMoreAnime}
+              onLoadMoreManga={handleLoadMoreManga}
+              hasMoreAnime={pageState.hasMoreAnime}
+              hasMoreManga={pageState.hasMoreManga}
+              isLoadingMoreAnime={isLoadingMoreAnime}
+              isLoadingMoreManga={isLoadingMoreManga}
+            />
+          </div>
         )}
 
         {/* Anime Search Results */}
         {pageState.isSearchingAnime && (
-          <section className="space-y-4 md:space-y-6">
+          <section className="space-y-4 md:space-y-6" data-scroll-content>
             <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
               Anime Results for "{pageState.animeSearchQuery}"
             </h2>
@@ -319,7 +321,7 @@ const Index = () => {
 
         {/* Manga Search Results */}
         {pageState.isSearchingManga && (
-          <section className="space-y-4 md:space-y-6">
+          <section className="space-y-4 md:space-y-6" data-scroll-content>
             <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
               Manga Results for "{pageState.mangaSearchQuery}"
             </h2>
@@ -339,7 +341,7 @@ const Index = () => {
 
         {/* Trending Content - only show if not searching or getting recommendations */}
         {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
-          <>
+          <div data-scroll-content>
             {/* Trending Anime */}
             {trendingAnimeLoading ? (
               <LoadingSpinner />
@@ -364,7 +366,7 @@ const Index = () => {
                 </div>
               </section>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
