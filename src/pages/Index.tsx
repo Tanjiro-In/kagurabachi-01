@@ -31,10 +31,11 @@ const createMockGenres = () => {
 
 const Index = () => {
   const { pageState, updatePageState, resetPageState, updateExpandedState, updateLoadingState } = usePageState();
-  const { clearScrollPosition } = useScrollRestoration();
+  const { clearScrollPosition } = useScrollRestoration('home');
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false);
 
   // Clear scroll position only when explicitly resetting
   const handleReset = () => {
@@ -66,6 +67,20 @@ const Index = () => {
       return anilistData.map(convertAniListToJikan);
     }
   });
+
+  // Mark content as loaded when data is available
+  useEffect(() => {
+    const hasData = trendingAnimeData || trendingMangaData || 
+                   pageState.animeSearchResults.length > 0 || 
+                   pageState.mangaSearchResults.length > 0 ||
+                   pageState.animeRecommendations.length > 0 ||
+                   pageState.mangaRecommendations.length > 0;
+    
+    if (hasData && !contentLoaded) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => setContentLoaded(true), 100);
+    }
+  }, [trendingAnimeData, trendingMangaData, pageState, contentLoaded]);
 
   const handleAnimeSearch = async (query: string) => {
     if (!query.trim()) {
