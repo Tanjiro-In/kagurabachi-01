@@ -56,6 +56,7 @@ export const usePageState = () => {
       if (savedState) {
         try {
           const parsed = JSON.parse(savedState);
+          console.log('Restored page state from sessionStorage:', parsed);
           return { ...initialState, ...parsed };
         } catch (error) {
           console.log('Failed to parse saved state');
@@ -76,14 +77,35 @@ export const usePageState = () => {
   useEffect(() => {
     const currentPath = location.pathname;
     
-    // Don't reset state when navigating back from detail pages
-    if (currentPath === '/' && !window.history.state?.fromDetailPage) {
-      // Only reset if this is a fresh navigation, not a back button press
+    // Only handle home page navigation
+    if (currentPath === '/') {
+      const isFromDetailPage = window.history.state?.fromDetailPage === true;
+      
+      console.log('Navigation to home page detected:', {
+        isFromDetailPage,
+        historyState: window.history.state,
+        performanceEntries: window.performance?.getEntriesByType?.('navigation')
+      });
+      
+      // Don't reset state when navigating back from detail pages
+      if (isFromDetailPage) {
+        console.log('Preserving state - user came from detail page');
+        // Clear the flag so subsequent navigations work normally
+        if (window.history.replaceState) {
+          window.history.replaceState(
+            { ...(window.history.state || {}), fromDetailPage: false },
+            ''
+          );
+        }
+        return;
+      }
+      
+      // Check if this is a page refresh vs new navigation
       const navigationEntries = window.performance?.getEntriesByType?.('navigation') as any[];
       const isRefresh = navigationEntries?.[0]?.type === 'reload';
       
       if (isRefresh) {
-        // This is a page refresh, don't preserve state
+        console.log('Page refresh detected - clearing state');
         resetPageState();
       }
     }
@@ -137,6 +159,7 @@ export const usePageState = () => {
   };
 
   const resetPageState = () => {
+    console.log('Resetting page state to initial values');
     setPageState(initialState);
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('pageState');
@@ -147,7 +170,7 @@ export const usePageState = () => {
     // Mark that we're navigating to a detail page
     if (window.history.pushState) {
       window.history.replaceState(
-        { ...window.history.state, fromDetailPage: false },
+        { ...(window.history.state || {}), fromDetailPage: false },
         ''
       );
     }

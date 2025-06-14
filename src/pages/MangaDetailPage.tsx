@@ -56,7 +56,7 @@ const MangaDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  // Add scroll restoration for this page
+  // Add scroll restoration for this page only
   useScrollRestoration(`manga-detail-${id}`);
 
   const { data: mangaData, isLoading: mangaLoading, error: mangaError } = useQuery({
@@ -74,13 +74,21 @@ const MangaDetailPage = () => {
   });
 
   const handleBackToHome = () => {
-    // Mark navigation state to preserve home page state
+    console.log('Navigating back to home, preserving scroll state');
+    
+    // Save current home page scroll position if it exists
+    const scrollPositions = JSON.parse(
+      sessionStorage.getItem('scroll-positions') || '{}'
+    );
+    
+    // Only update navigation state, keep existing scroll position
     if (window.history.pushState) {
       window.history.replaceState(
-        { ...window.history.state, fromDetailPage: true },
+        { ...(window.history.state || {}), fromDetailPage: true },
         ''
       );
     }
+    
     navigate('/');
   };
 
