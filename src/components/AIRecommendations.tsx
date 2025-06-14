@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Calendar, Tags, RotateCcw } from 'lucide-react';
 
 interface Genre {
@@ -11,6 +11,8 @@ interface AIRecommendationsProps {
   mangaGenres: Genre[];
   onRecommendationRequest: (genres: string[], year: string) => void;
   isLoading?: boolean;
+  defaultGenres?: string[];
+  defaultYear?: string;
 }
 
 const POPULAR_GENRES = [
@@ -31,10 +33,18 @@ const AIRecommendations: React.FC<AIRecommendationsProps> = ({
   animeGenres, 
   mangaGenres, 
   onRecommendationRequest, 
-  isLoading = false 
+  isLoading = false,
+  defaultGenres = [],
+  defaultYear = 'any'
 }) => {
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [selectedYear, setSelectedYear] = useState<string>('any');
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(defaultGenres);
+  const [selectedYear, setSelectedYear] = useState<string>(defaultYear);
+
+  // Update state when default props change
+  useEffect(() => {
+    setSelectedGenres(defaultGenres);
+    setSelectedYear(defaultYear);
+  }, [defaultGenres, defaultYear]);
 
   // Combine and filter genres
   const allGenres = [...animeGenres, ...mangaGenres].reduce((acc, genre) => {
