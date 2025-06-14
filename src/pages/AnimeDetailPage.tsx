@@ -74,21 +74,14 @@ const AnimeDetailPage = () => {
   });
 
   const handleBackToHome = () => {
-    console.log('Navigating back to home, preserving scroll state');
-    
-    // Save current home page scroll position if it exists
-    const scrollPositions = JSON.parse(
-      sessionStorage.getItem('scroll-positions') || '{}'
-    );
-    
-    // Only update navigation state, keep existing scroll position
+    console.log('Setting navigation state for home page preservation');
+    // Mark navigation state to preserve home page state
     if (window.history.pushState) {
       window.history.replaceState(
         { ...(window.history.state || {}), fromDetailPage: true },
         ''
       );
     }
-    
     navigate('/');
   };
 

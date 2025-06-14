@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -14,7 +15,6 @@ export const useScrollRestoration = (key?: string) => {
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  const contentReadyRef = useRef(false);
 
   // Save scroll position with debouncing
   const saveScrollPosition = useCallback(() => {
@@ -31,52 +31,34 @@ export const useScrollRestoration = (key?: string) => {
     };
     
     sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
-    console.log('Saved scroll position for', scrollKey, scrollPositions[scrollKey]);
   }, [scrollKey]);
 
-  // Enhanced content detection for home page
-  const waitForHomeContent = useCallback((): Promise<void> => {
+  // Wait for content to be ready
+  const waitForContent = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
       const checkContent = () => {
-        // For home page, wait for content-ready event
-        if (scrollKey === '/' && !contentReadyRef.current) {
-          return false;
-        }
-        
-        // Check if page has meaningful content
+        // Check if page has content beyond the header
         const hasContent = document.body.scrollHeight > window.innerHeight + 100;
         
-        // Check if images are loaded
+        // Also check if images are loaded
         const images = document.querySelectorAll('img');
         const imagesLoaded = Array.from(images).every(img => img.complete);
         
-        // For home page, also check for specific content sections
-        if (scrollKey === '/') {
-          const hasSearchResults = document.querySelector('[data-testid="search-results"], .grid .anime-card');
-          const hasRecommendations = document.querySelector('[data-testid="recommendations"], .recommendation-section');
-          const hasTrending = document.querySelector('[data-testid="trending"], .trending-section');
-          
-          return hasContent && imagesLoaded && (hasSearchResults || hasRecommendations || hasTrending);
-        }
-        
-        return hasContent && imagesLoaded;
-      };
-      
-      const attemptResolve = () => {
-        if (checkContent()) {
+        if (hasContent && imagesLoaded) {
           resolve();
         } else {
-          setTimeout(attemptResolve, 50);
+          // Wait a bit more
+          setTimeout(checkContent, 100);
         }
       };
       
       // Start checking immediately
-      attemptResolve();
+      checkContent();
       
-      // Maximum wait time
-      setTimeout(() => resolve(), 3000);
+      // But also set a maximum wait time
+      setTimeout(() => resolve(), 2000);
     });
-  }, [scrollKey]);
+  }, []);
 
   // Restore scroll position
   const restoreScrollPosition = useCallback(async () => {
@@ -90,8 +72,6 @@ export const useScrollRestoration = (key?: string) => {
     
     const savedPosition: ScrollPosition & { timestamp?: number } = scrollPositions[scrollKey];
     
-    console.log('Attempting to restore scroll for', scrollKey, savedPosition);
-    
     if (savedPosition && (savedPosition.x > 0 || savedPosition.y > 0)) {
       isRestoringRef.current = true;
       hasRestoredRef.current = true;
@@ -99,38 +79,31 @@ export const useScrollRestoration = (key?: string) => {
       console.log('Restoring scroll position:', savedPosition);
       
       // Wait for content to be ready
-      await waitForHomeContent();
+      await waitForContent();
       
-      // Multiple restoration attempts for better reliability
-      const attemptRestore = (attempt = 1) => {
-        requestAnimationFrame(() => {
-          window.scrollTo({
-            left: savedPosition.x,
-            top: savedPosition.y,
-            behavior: 'auto'
-          });
-          
-          // Verify and retry if needed
-          setTimeout(() => {
-            const actualY = window.scrollY;
-            const targetY = savedPosition.y;
-            
-            if (Math.abs(actualY - targetY) > 50 && attempt < 3) {
-              console.log(`Scroll restoration attempt ${attempt} failed, retrying...`);
-              attemptRestore(attempt + 1);
-            } else {
-              console.log('Scroll restoration completed');
-              isRestoringRef.current = false;
-            }
-          }, 100);
+      // Use requestAnimationFrame for smoother restoration
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          left: savedPosition.x,
+          top: savedPosition.y,
+          behavior: 'auto' // Instant scroll, no animation
         });
-      };
-      
-      attemptRestore();
-    } else {
-      console.log('No saved position found for', scrollKey);
+        
+        // Verify restoration worked
+        setTimeout(() => {
+          const actualY = window.scrollY;
+          const targetY = savedPosition.y;
+          
+          if (Math.abs(actualY - targetY) > 50) {
+            console.log('Scroll restoration verification failed, retrying...');
+            window.scrollTo(savedPosition.x, savedPosition.y);
+          }
+          
+          isRestoringRef.current = false;
+        }, 100);
+      });
     }
-  }, [scrollKey, waitForHomeContent]);
+  }, [scrollKey, waitForContent]);
 
   // Handle scroll events
   useEffect(() => {
@@ -166,30 +139,16 @@ export const useScrollRestoration = (key?: string) => {
     };
   }, [saveScrollPosition]);
 
-  // Listen for home content ready event
-  useEffect(() => {
-    const handleContentReady = () => {
-      console.log('Home content ready event received');
-      contentReadyRef.current = true;
-    };
-
-    if (scrollKey === '/') {
-      window.addEventListener('home-content-ready', handleContentReady);
-      return () => window.removeEventListener('home-content-ready', handleContentReady);
-    }
-  }, [scrollKey]);
-
-  // Restore on mount with improved timing
+  // Restore on mount
   useEffect(() => {
     // Reset flags when route changes
     hasRestoredRef.current = false;
     isRestoringRef.current = false;
-    contentReadyRef.current = false;
     
-    // Restore scroll position with appropriate delay
+    // Restore scroll position after a short delay
     const timeoutId = setTimeout(() => {
       restoreScrollPosition();
-    }, scrollKey === '/' ? 150 : 50);
+    }, 50);
 
     return () => {
       clearTimeout(timeoutId);
