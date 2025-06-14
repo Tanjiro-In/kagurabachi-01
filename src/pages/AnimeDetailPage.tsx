@@ -58,8 +58,6 @@ const AnimeDetailPage = () => {
   
   // Add scroll restoration for this page only
   useScrollRestoration(`anime-detail-${id}`);
-  useScrollRestoration('anime-list');
-
 
   const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
     queryKey: ['anime-details', id],
@@ -76,22 +74,17 @@ const AnimeDetailPage = () => {
   });
 
   const handleBackToHome = () => {
-    console.log('Navigating back to home, preserving scroll state');
+    console.log('Navigating back to home from anime detail page');
     
-    // Save current home page scroll position if it exists
-    const scrollPositions = JSON.parse(
-      sessionStorage.getItem('scroll-positions') || '{}'
-    );
+    // Store context about where user came from for auto-scroll fallback
+    sessionStorage.setItem('return-context', JSON.stringify({
+      type: 'anime',
+      timestamp: Date.now(),
+      fromDetailPage: true
+    }));
     
-    // Only update navigation state, keep existing scroll position
-    if (window.history.pushState) {
-      window.history.replaceState(
-        { ...(window.history.state || {}), fromDetailPage: true },
-        ''
-      );
-    }
-    
-    navigate(-1);
+    // Use simple navigation to home
+    navigate('/');
   };
 
   if (animeLoading) {

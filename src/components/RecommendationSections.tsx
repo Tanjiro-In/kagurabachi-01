@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Play, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import AnimeCard from './AnimeCard';
@@ -110,7 +111,7 @@ const RecommendationSections: React.FC<RecommendationSectionsProps> = ({
     <div className="space-y-12 md:space-y-16">
       {/* Anime Recommendations Section */}
       {animeRecommendations.length > 0 && (
-        <section className="space-y-4 md:space-y-6">
+        <section className="space-y-4 md:space-y-6" data-section="anime-recommendations">
           <div className="text-center space-y-2">
             <h2 className="text-2xl md:text-3xl font-bold gradient-text flex items-center justify-center gap-2 md:gap-3 flex-wrap">
               <Play className="w-6 md:w-8 h-6 md:h-8 text-primary" />
@@ -178,7 +179,7 @@ const RecommendationSections: React.FC<RecommendationSectionsProps> = ({
 
       {/* Manga Recommendations Section */}
       {mangaRecommendations.length > 0 && (
-        <section className="space-y-4 md:space-y-6">
+        <section className="space-y-4 md:space-y-6" data-section="manga-recommendations">
           <div className="text-center space-y-2">
             <h2 className="text-2xl md:text-3xl font-bold gradient-text flex items-center justify-center gap-2 md:gap-3 flex-wrap">
               <BookOpen className="w-6 md:w-8 h-6 md:h-8 text-purple-400" />

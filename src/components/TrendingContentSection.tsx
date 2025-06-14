@@ -23,14 +23,16 @@ const TrendingContentSection: React.FC<TrendingContentSectionProps> = ({
       {trendingAnimeLoading ? (
         <LoadingSpinner />
       ) : (
-        <TrendingSection animes={trendingAnimeData || []} title="Trending Anime" />
+        <div data-section="trending-anime">
+          <TrendingSection animes={trendingAnimeData || []} title="Trending Anime" />
+        </div>
       )}
 
       {/* Trending Manga */}
       {trendingMangaLoading ? (
         <LoadingSpinner />
       ) : trendingMangaData && (
-        <section className="space-y-4 md:space-y-6">
+        <section className="space-y-4 md:space-y-6" data-section="trending-manga">
           <div className="text-center space-y-2">
             <h2 className="text-2xl md:text-3xl font-bold gradient-text">Trending Manga</h2>
             <div className="w-16 md:w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>

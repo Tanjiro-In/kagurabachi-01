@@ -74,21 +74,16 @@ const MangaDetailPage = () => {
   });
 
   const handleBackToHome = () => {
-    console.log('Navigating back to home, preserving scroll state');
+    console.log('Navigating back to home from manga detail page');
     
-    // Save current home page scroll position if it exists
-    const scrollPositions = JSON.parse(
-      sessionStorage.getItem('scroll-positions') || '{}'
-    );
+    // Store context about where user came from for auto-scroll fallback
+    sessionStorage.setItem('return-context', JSON.stringify({
+      type: 'manga',
+      timestamp: Date.now(),
+      fromDetailPage: true
+    }));
     
-    // Only update navigation state, keep existing scroll position
-    if (window.history.pushState) {
-      window.history.replaceState(
-        { ...(window.history.state || {}), fromDetailPage: true },
-        ''
-      );
-    }
-    
+    // Use simple navigation to home
     navigate('/');
   };
 

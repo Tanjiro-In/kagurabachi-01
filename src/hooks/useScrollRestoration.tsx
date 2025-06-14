@@ -1,9 +1,11 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
 interface ScrollPosition {
   x: number;
   y: number;
+  timestamp: number;
 }
 
 const SCROLL_RESTORATION_KEY = 'scroll-positions';
@@ -14,7 +16,6 @@ export const useScrollRestoration = (key?: string) => {
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  const contentReadyRef = useRef(false);
 
   // Save scroll position with debouncing
   const saveScrollPosition = useCallback(() => {
@@ -34,48 +35,67 @@ export const useScrollRestoration = (key?: string) => {
     console.log('Saved scroll position for', scrollKey, scrollPositions[scrollKey]);
   }, [scrollKey]);
 
-  // Enhanced content detection for home page
-  const waitForHomeContent = useCallback((): Promise<void> => {
-    return new Promise((resolve) => {
-      const checkContent = () => {
-        // For home page, wait for content-ready event
-        if (scrollKey === '/' && !contentReadyRef.current) {
-          return false;
-        }
-        
-        // Check if page has meaningful content
-        const hasContent = document.body.scrollHeight > window.innerHeight + 100;
-        
-        // Check if images are loaded
-        const images = document.querySelectorAll('img');
-        const imagesLoaded = Array.from(images).every(img => img.complete);
-        
-        // For home page, also check for specific content sections
-        if (scrollKey === '/') {
-          const hasSearchResults = document.querySelector('[data-testid="search-results"], .grid .anime-card');
-          const hasRecommendations = document.querySelector('[data-testid="recommendations"], .recommendation-section');
-          const hasTrending = document.querySelector('[data-testid="trending"], .trending-section');
-          
-          return hasContent && imagesLoaded && (hasSearchResults || hasRecommendations || hasTrending);
-        }
-        
-        return hasContent && imagesLoaded;
-      };
+  // Enhanced auto-scroll fallback for home page
+  const performAutoScroll = useCallback(() => {
+    if (scrollKey !== '/') return;
+
+    const returnContext = sessionStorage.getItem('return-context');
+    if (!returnContext) return;
+
+    try {
+      const context = JSON.parse(returnContext);
+      if (!context.fromDetailPage || Date.now() - context.timestamp > 10000) {
+        // Clear old context
+        sessionStorage.removeItem('return-context');
+        return;
+      }
+
+      console.log('Performing auto-scroll for', context.type);
+
+      // Find the appropriate section to scroll to
+      let targetElement: Element | null = null;
       
-      const attemptResolve = () => {
-        if (checkContent()) {
-          resolve();
-        } else {
-          setTimeout(attemptResolve, 50);
-        }
-      };
-      
-      // Start checking immediately
-      attemptResolve();
-      
-      // Maximum wait time
-      setTimeout(() => resolve(), 3000);
-    });
+      if (context.type === 'anime') {
+        // Look for anime sections in order of preference
+        targetElement = 
+          document.querySelector('[data-section="anime-recommendations"]') ||
+          document.querySelector('[data-section="anime-search"]') ||
+          document.querySelector('[data-section="trending-anime"]') ||
+          document.querySelector('h2:contains("Recommended Anime")') ||
+          document.querySelector('h2:contains("Trending Anime")');
+      } else if (context.type === 'manga') {
+        // Look for manga sections
+        targetElement = 
+          document.querySelector('[data-section="manga-recommendations"]') ||
+          document.querySelector('[data-section="manga-search"]') ||
+          document.querySelector('[data-section="trending-manga"]') ||
+          document.querySelector('h2:contains("Recommended Manga")') ||
+          document.querySelector('h2:contains("Trending Manga")');
+      }
+
+      if (targetElement) {
+        console.log('Auto-scrolling to', context.type, 'section');
+        
+        // Smooth scroll to the section with a small offset
+        const elementTop = targetElement.getBoundingClientRect().top + window.scrollY;
+        const offset = 100; // 100px offset from top
+        
+        window.scrollTo({
+          top: Math.max(0, elementTop - offset),
+          behavior: 'smooth'
+        });
+
+        // Clear the context after successful scroll
+        setTimeout(() => {
+          sessionStorage.removeItem('return-context');
+        }, 2000);
+      } else {
+        console.log('Target section not found for auto-scroll');
+      }
+    } catch (error) {
+      console.error('Error in auto-scroll:', error);
+      sessionStorage.removeItem('return-context');
+    }
   }, [scrollKey]);
 
   // Restore scroll position
@@ -88,7 +108,7 @@ export const useScrollRestoration = (key?: string) => {
       sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
     );
     
-    const savedPosition: ScrollPosition & { timestamp?: number } = scrollPositions[scrollKey];
+    const savedPosition: ScrollPosition = scrollPositions[scrollKey];
     
     console.log('Attempting to restore scroll for', scrollKey, savedPosition);
     
@@ -98,51 +118,46 @@ export const useScrollRestoration = (key?: string) => {
       
       console.log('Restoring scroll position:', savedPosition);
       
-      // Wait for content to be ready
-      await waitForHomeContent();
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Multiple restoration attempts for better reliability
-      const attemptRestore = (attempt = 1) => {
-        requestAnimationFrame(() => {
-          window.scrollTo({
-            left: savedPosition.x,
-            top: savedPosition.y,
-            behavior: 'auto'
-          });
-          
-          // Verify and retry if needed
-          setTimeout(() => {
-            const actualY = window.scrollY;
-            const targetY = savedPosition.y;
-            
-            if (Math.abs(actualY - targetY) > 50 && attempt < 3) {
-              console.log(`Scroll restoration attempt ${attempt} failed, retrying...`);
-              attemptRestore(attempt + 1);
-            } else {
-              console.log('Scroll restoration completed');
-              isRestoringRef.current = false;
-            }
-          }, 100);
-        });
-      };
+      // Try to restore scroll
+      window.scrollTo({
+        left: savedPosition.x,
+        top: savedPosition.y,
+        behavior: 'auto'
+      });
       
-      attemptRestore();
+      // Verify restoration worked
+      setTimeout(() => {
+        const actualY = window.scrollY;
+        const targetY = savedPosition.y;
+        
+        if (Math.abs(actualY - targetY) > 100) {
+          console.log('Native scroll restoration failed, trying auto-scroll fallback');
+          performAutoScroll();
+        } else {
+          console.log('Scroll restoration successful');
+        }
+        
+        isRestoringRef.current = false;
+      }, 300);
     } else {
-      console.log('No saved position found for', scrollKey);
+      console.log('No saved position found for', scrollKey, '- trying auto-scroll');
+      // If no saved position, try auto-scroll fallback
+      setTimeout(performAutoScroll, 500);
     }
-  }, [scrollKey, waitForHomeContent]);
+  }, [scrollKey, performAutoScroll]);
 
   // Handle scroll events
   useEffect(() => {
     const handleScroll = () => {
       if (isRestoringRef.current) return;
       
-      // Clear existing timeout
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
       
-      // Debounce save
       saveTimeoutRef.current = setTimeout(saveScrollPosition, 100);
     };
 
@@ -166,30 +181,14 @@ export const useScrollRestoration = (key?: string) => {
     };
   }, [saveScrollPosition]);
 
-  // Listen for home content ready event
+  // Restore on mount
   useEffect(() => {
-    const handleContentReady = () => {
-      console.log('Home content ready event received');
-      contentReadyRef.current = true;
-    };
-
-    if (scrollKey === '/') {
-      window.addEventListener('home-content-ready', handleContentReady);
-      return () => window.removeEventListener('home-content-ready', handleContentReady);
-    }
-  }, [scrollKey]);
-
-  // Restore on mount with improved timing
-  useEffect(() => {
-    // Reset flags when route changes
     hasRestoredRef.current = false;
     isRestoringRef.current = false;
-    contentReadyRef.current = false;
     
-    // Restore scroll position with appropriate delay
     const timeoutId = setTimeout(() => {
       restoreScrollPosition();
-    }, scrollKey === '/' ? 150 : 50);
+    }, 100);
 
     return () => {
       clearTimeout(timeoutId);

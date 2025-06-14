@@ -23,7 +23,7 @@ const SearchResultsSection: React.FC<SearchResultsSectionProps> = ({
     <>
       {/* Anime Search Results */}
       {isSearchingAnime && (
-        <section className="space-y-4 md:space-y-6">
+        <section className="space-y-4 md:space-y-6" data-section="anime-search">
           <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
             Anime Results for "{animeSearchQuery}"
           </h2>
@@ -43,7 +43,7 @@ const SearchResultsSection: React.FC<SearchResultsSectionProps> = ({
 
       {/* Manga Search Results */}
       {isSearchingManga && (
-        <section className="space-y-4 md:space-y-6">
+        <section className="space-y-4 md:space-y-6" data-section="manga-search">
           <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
             Manga Results for "{mangaSearchQuery}"
           </h2>
