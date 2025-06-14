@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchBar from '../components/SearchBar';
@@ -9,6 +8,7 @@ import TrendingSection from '../components/TrendingSection';
 import LoadingSpinner from '../components/LoadingSpinner';
 import AnimeCard from '../components/AnimeCard';
 import { usePageState } from '../hooks/usePageState';
+import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { 
   fetchTrendingAnimeAniList, 
   fetchTrendingMangaAniList, 
@@ -30,10 +30,18 @@ const createMockGenres = () => {
 };
 
 const Index = () => {
-  const { pageState, updatePageState, resetPageState } = usePageState();
+  const { pageState, updatePageState, resetPageState, updateExpandedState, updateLoadingState } = usePageState();
+  const { clearScrollPosition } = useScrollRestoration();
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
+
+  // Clear scroll position only when explicitly resetting
+  const handleReset = () => {
+    resetPageState();
+    clearScrollPosition();
+    setIsLoadingRecommendations(false);
+  };
 
   // Fetch trending anime from AniList
   const {
@@ -75,6 +83,8 @@ const Index = () => {
       hasRecommendations: false
     });
     
+    updateLoadingState('animeSearch', true);
+    
     try {
       const data = await searchAnimeAniList(query);
       updatePageState({
@@ -85,6 +95,8 @@ const Index = () => {
       updatePageState({
         animeSearchResults: []
       });
+    } finally {
+      updateLoadingState('animeSearch', false);
     }
   };
 
@@ -104,6 +116,8 @@ const Index = () => {
       hasRecommendations: false
     });
     
+    updateLoadingState('mangaSearch', true);
+    
     try {
       const data = await searchMangaAniList(query);
       updatePageState({
@@ -114,19 +128,21 @@ const Index = () => {
       updatePageState({
         mangaSearchResults: []
       });
+    } finally {
+      updateLoadingState('mangaSearch', false);
     }
   };
 
   const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
     // Handle reset case
     if (yearRange === 'reset') {
-      resetPageState();
-      setIsLoadingRecommendations(false);
+      handleReset();
       return;
     }
 
     console.log('Starting recommendation request with genres:', genres, 'and year:', yearRange);
     setIsLoadingRecommendations(true);
+    updateLoadingState('recommendations', true);
     
     updatePageState({
       isSearchingAnime: false,
@@ -166,6 +182,7 @@ const Index = () => {
       });
     } finally {
       setIsLoadingRecommendations(false);
+      updateLoadingState('recommendations', false);
     }
   };
 

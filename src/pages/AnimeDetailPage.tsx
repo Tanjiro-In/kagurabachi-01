@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ImageGallery from '../components/ImageGallery';
 import DetailedInfo from '../components/DetailedInfo';
+import { useScrollRestoration } from '../hooks/useScrollRestoration';
 
 const fetchAnimeDetails = async (id: string) => {
   // First try to fetch from Jikan with the provided ID
@@ -55,6 +55,9 @@ const fetchAnimePictures = async (id: string) => {
 const AnimeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
+  // Add scroll restoration for this page
+  useScrollRestoration(`anime-detail-${id}`);
 
   const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
     queryKey: ['anime-details', id],
@@ -71,6 +74,13 @@ const AnimeDetailPage = () => {
   });
 
   const handleBackToHome = () => {
+    // Mark navigation state to preserve home page state
+    if (window.history.pushState) {
+      window.history.replaceState(
+        { ...window.history.state, fromDetailPage: true },
+        ''
+      );
+    }
     navigate('/');
   };
 

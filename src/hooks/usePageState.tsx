@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -17,6 +18,11 @@ interface PageState {
   mangaCurrentPage: number;
   hasMoreAnime: boolean;
   hasMoreManga: boolean;
+  // New state properties for better preservation
+  lastActiveSection: 'trending' | 'search' | 'recommendations';
+  expandedStates: Record<string, boolean>;
+  filterStates: Record<string, any>;
+  loadingStates: Record<string, boolean>;
 }
 
 const initialState: PageState = {
@@ -35,6 +41,10 @@ const initialState: PageState = {
   mangaCurrentPage: 1,
   hasMoreAnime: false,
   hasMoreManga: false,
+  lastActiveSection: 'trending',
+  expandedStates: {},
+  filterStates: {},
+  loadingStates: {},
 };
 
 export const usePageState = () => {
@@ -45,7 +55,8 @@ export const usePageState = () => {
       const savedState = sessionStorage.getItem('pageState');
       if (savedState) {
         try {
-          return { ...initialState, ...JSON.parse(savedState) };
+          const parsed = JSON.parse(savedState);
+          return { ...initialState, ...parsed };
         } catch (error) {
           console.log('Failed to parse saved state');
         }
@@ -61,16 +72,68 @@ export const usePageState = () => {
     }
   }, [pageState]);
 
-  // Only reset search results when coming from external navigation (not back button)
+  // Track navigation state to preserve context
   useEffect(() => {
-    if (location.pathname === '/' && !window.history.state?.fromDetailPage) {
-      // This is a fresh navigation to home, not a back button press
-      // Keep recommendations but clear search if user navigated away from detail pages
+    const currentPath = location.pathname;
+    
+    // Don't reset state when navigating back from detail pages
+    if (currentPath === '/' && !window.history.state?.fromDetailPage) {
+      // Only reset if this is a fresh navigation, not a back button press
+      const navigationEntries = window.performance?.getEntriesByType?.('navigation') as any[];
+      const isRefresh = navigationEntries?.[0]?.type === 'reload';
+      
+      if (isRefresh) {
+        // This is a page refresh, don't preserve state
+        resetPageState();
+      }
     }
   }, [location.pathname]);
 
   const updatePageState = (updates: Partial<PageState>) => {
-    setPageState(prev => ({ ...prev, ...updates }));
+    setPageState(prev => {
+      const newState = { ...prev, ...updates };
+      
+      // Automatically update lastActiveSection based on what's being updated
+      if (updates.isSearchingAnime || updates.isSearchingManga) {
+        newState.lastActiveSection = 'search';
+      } else if (updates.hasRecommendations) {
+        newState.lastActiveSection = 'recommendations';
+      } else if (!updates.isSearchingAnime && !updates.isSearchingManga && !updates.hasRecommendations) {
+        newState.lastActiveSection = 'trending';
+      }
+      
+      return newState;
+    });
+  };
+
+  const updateExpandedState = (key: string, value: boolean) => {
+    setPageState(prev => ({
+      ...prev,
+      expandedStates: {
+        ...prev.expandedStates,
+        [key]: value
+      }
+    }));
+  };
+
+  const updateFilterState = (key: string, value: any) => {
+    setPageState(prev => ({
+      ...prev,
+      filterStates: {
+        ...prev.filterStates,
+        [key]: value
+      }
+    }));
+  };
+
+  const updateLoadingState = (key: string, value: boolean) => {
+    setPageState(prev => ({
+      ...prev,
+      loadingStates: {
+        ...prev.loadingStates,
+        [key]: value
+      }
+    }));
   };
 
   const resetPageState = () => {
@@ -80,9 +143,23 @@ export const usePageState = () => {
     }
   };
 
+  const preserveNavigationState = () => {
+    // Mark that we're navigating to a detail page
+    if (window.history.pushState) {
+      window.history.replaceState(
+        { ...window.history.state, fromDetailPage: false },
+        ''
+      );
+    }
+  };
+
   return {
     pageState,
     updatePageState,
+    updateExpandedState,
+    updateFilterState,
+    updateLoadingState,
     resetPageState,
+    preserveNavigationState,
   };
 };

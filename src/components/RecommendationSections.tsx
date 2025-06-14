@@ -1,7 +1,7 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
 import AnimeCard from './AnimeCard';
+import { useScrollRestoration } from '../hooks/useScrollRestoration';
 
 interface RecommendationSectionsProps {
   animeRecommendations: any[];
@@ -26,8 +26,38 @@ const RecommendationSections: React.FC<RecommendationSectionsProps> = ({
   isLoadingMoreAnime = false,
   isLoadingMoreManga = false
 }) => {
-  const [showAllAnime, setShowAllAnime] = useState(false);
-  const [showAllManga, setShowAllManga] = useState(false);
+  // Preserve expanded states using sessionStorage
+  const [showAllAnime, setShowAllAnime] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('recommendations-showAllAnime');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+  
+  const [showAllManga, setShowAllManga] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('recommendations-showAllManga');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+
+  // Add scroll restoration for recommendations section
+  useScrollRestoration('recommendations-section');
+
+  // Save expanded states to sessionStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('recommendations-showAllAnime', JSON.stringify(showAllAnime));
+    }
+  }, [showAllAnime]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('recommendations-showAllManga', JSON.stringify(showAllManga));
+    }
+  }, [showAllManga]);
 
   if (isLoading) {
     return (
