@@ -7,6 +7,8 @@ import ImageGallery from '../components/ImageGallery';
 import DetailedInfo from '../components/DetailedInfo';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 
+const SCROLL_RESTORATION_KEY = 'scroll-positions';
+
 const fetchAnimeDetails = async (id: string) => {
   // First try to fetch from Jikan with the provided ID
   try {
@@ -55,7 +57,22 @@ const fetchAnimePictures = async (id: string) => {
 const AnimeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
+  // Function to save scroll position for the home page ('/')
+  const saveHomeScrollPosition = () => {
+    if (typeof window === 'undefined') return;
+    const scrollPositions = JSON.parse(
+      sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
+    );
+    scrollPositions['/'] = {
+      x: window.scrollX,
+      y: window.scrollY,
+      timestamp: Date.now()
+    };
+    sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
+    console.log('Saved scroll position for home (/):', scrollPositions['/']);
+  };
+
   // Add scroll restoration for this page only
   useScrollRestoration(`anime-detail-${id}`);
 
@@ -75,6 +92,8 @@ const AnimeDetailPage = () => {
 
   const handleBackToHome = () => {
     console.log('Setting navigation state for home page preservation');
+    // Save the current scroll position for home
+    saveHomeScrollPosition();
     // Mark navigation state to preserve home page state
     if (window.history.pushState) {
       window.history.replaceState(
