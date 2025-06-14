@@ -46,6 +46,91 @@ export interface AniListManga {
   };
 }
 
+export interface AniListAnimeDetail {
+  id: number;
+  idMal?: number;
+  title: {
+    romaji: string;
+    english?: string;
+    native: string;
+  };
+  description?: string;
+  coverImage: {
+    extraLarge: string;
+    large: string;
+    medium: string;
+  };
+  bannerImage?: string;
+  averageScore?: number;
+  genres: string[];
+  tags: {
+    name: string;
+  }[];
+  format: string;
+  status: string;
+  episodes?: number;
+  duration?: number;
+  source?: string;
+  studios: {
+    nodes: {
+      name: string;
+    }[];
+  };
+  startDate?: {
+    year?: number;
+    month?: number;
+    day?: number;
+  };
+  endDate?: {
+    year?: number;
+    month?: number;
+    day?: number;
+  };
+}
+
+export interface AniListMangaDetail {
+  id: number;
+  idMal?: number;
+  title: {
+    romaji: string;
+    english?: string;
+    native: string;
+  };
+  description?: string;
+  coverImage: {
+    extraLarge: string;
+    large: string;
+    medium: string;
+  };
+  bannerImage?: string;
+  averageScore?: number;
+  genres: string[];
+  tags: {
+    name: string;
+  }[];
+  format: string;
+  status: string;
+  chapters?: number;
+  volumes?: number;
+  staff: {
+    nodes: {
+      name: {
+        full: string;
+      };
+    }[];
+  };
+  startDate?: {
+    year?: number;
+    month?: number;
+    day?: number;
+  };
+  endDate?: {
+    year?: number;
+    month?: number;
+    day?: number;
+  };
+}
+
 const TRENDING_ANIME_QUERY = `
   query {
     Page(page: 1, perPage: 12) {
@@ -246,6 +331,99 @@ const MANGA_BY_GENRE_QUERY = `
   }
 `;
 
+const ANIME_DETAIL_QUERY = `
+  query($id: Int, $idMal: Int) {
+    Media(id: $id, idMal: $idMal, type: ANIME) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      description
+      coverImage {
+        extraLarge
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      genres
+      tags {
+        name
+      }
+      format
+      status
+      episodes
+      duration
+      source
+      studios {
+        nodes {
+          name
+        }
+      }
+      startDate {
+        year
+        month
+        day
+      }
+      endDate {
+        year
+        month
+        day
+      }
+    }
+  }
+`;
+
+const MANGA_DETAIL_QUERY = `
+  query($id: Int, $idMal: Int) {
+    Media(id: $id, idMal: $idMal, type: MANGA) {
+      id
+      idMal
+      title {
+        romaji
+        english
+        native
+      }
+      description
+      coverImage {
+        extraLarge
+        large
+        medium
+      }
+      bannerImage
+      averageScore
+      genres
+      tags {
+        name
+      }
+      format
+      status
+      chapters
+      volumes
+      staff {
+        nodes {
+          name {
+            full
+          }
+        }
+      }
+      startDate {
+        year
+        month
+        day
+      }
+      endDate {
+        year
+        month
+        day
+      }
+    }
+  }
+`;
+
 export const fetchTrendingAnimeAniList = async (): Promise<AniListAnime[]> => {
   const response = await fetch(ANILIST_ENDPOINT, {
     method: 'POST',
@@ -418,4 +596,92 @@ export const fetchMangaByGenresAniList = async (genres: string[], yearRange: str
     data: filteredData,
     hasNextPage: data.data.Page.pageInfo.hasNextPage
   };
+};
+
+export const fetchAnimeDetailAniList = async (id: string): Promise<AniListAnimeDetail> => {
+  // First try with the ID as MAL ID
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: ANIME_DETAIL_QUERY,
+      variables: { idMal: parseInt(id) },
+    }),
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch anime details from AniList');
+  
+  const data = await response.json();
+  
+  if (data.data?.Media) {
+    return data.data.Media;
+  }
+
+  // If not found by MAL ID, try with AniList ID
+  const responseById = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: ANIME_DETAIL_QUERY,
+      variables: { id: parseInt(id) },
+    }),
+  });
+
+  if (!responseById.ok) throw new Error('Failed to fetch anime details from AniList');
+  
+  const dataById = await responseById.json();
+  
+  if (dataById.data?.Media) {
+    return dataById.data.Media;
+  }
+
+  throw new Error('Anime not found in AniList database');
+};
+
+export const fetchMangaDetailAniList = async (id: string): Promise<AniListMangaDetail> => {
+  // First try with the ID as MAL ID
+  const response = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: MANGA_DETAIL_QUERY,
+      variables: { idMal: parseInt(id) },
+    }),
+  });
+
+  if (!response.ok) throw new Error('Failed to fetch manga details from AniList');
+  
+  const data = await response.json();
+  
+  if (data.data?.Media) {
+    return data.data.Media;
+  }
+
+  // If not found by MAL ID, try with AniList ID
+  const responseById = await fetch(ANILIST_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: MANGA_DETAIL_QUERY,
+      variables: { id: parseInt(id) },
+    }),
+  });
+
+  if (!responseById.ok) throw new Error('Failed to fetch manga details from AniList');
+  
+  const dataById = await responseById.json();
+  
+  if (dataById.data?.Media) {
+    return dataById.data.Media;
+  }
+
+  throw new Error('Manga not found in AniList database');
 };

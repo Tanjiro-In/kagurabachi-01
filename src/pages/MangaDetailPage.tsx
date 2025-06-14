@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -6,36 +7,49 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ImageGallery from '../components/ImageGallery';
 import DetailedInfo from '../components/DetailedInfo';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
+import { fetchMangaDetailAniList } from '../services/anilistApi';
+import { convertAniListMangaDetailToJikan } from '../utils/detailConverter';
 
 const fetchMangaDetails = async (id: string) => {
-  // First try to fetch from Jikan with the provided ID
   try {
-    const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`);
-    if (response.ok) {
-      return response.json();
+    // First try AniList (primary source)
+    console.log('Fetching manga details from AniList for ID:', id);
+    const anilistData = await fetchMangaDetailAniList(id);
+    return { data: convertAniListMangaDetailToJikan(anilistData), source: 'anilist' };
+  } catch (anilistError) {
+    console.log('AniList failed, trying Jikan API:', anilistError);
+    
+    // Fallback to Jikan API
+    try {
+      const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`);
+      if (response.ok) {
+        const jikanData = await response.json();
+        return { data: jikanData.data, source: 'jikan' };
+      }
+    } catch (jikanError) {
+      console.log('Jikan API also failed:', jikanError);
     }
-  } catch (error) {
-    console.log('Jikan API failed, trying alternative approach');
-  }
 
-  // If that fails, try to search for the manga by ID or title
-  try {
-    const searchResponse = await fetch(`https://api.jikan.moe/v4/manga?q=${id}&limit=1`);
-    if (searchResponse.ok) {
-      const searchData = await searchResponse.json();
-      if (searchData.data && searchData.data.length > 0) {
-        const mangaId = searchData.data[0].mal_id;
-        const detailResponse = await fetch(`https://api.jikan.moe/v4/manga/${mangaId}/full`);
-        if (detailResponse.ok) {
-          return detailResponse.json();
+    // Final attempt with search
+    try {
+      const searchResponse = await fetch(`https://api.jikan.moe/v4/manga?q=${id}&limit=1`);
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        if (searchData.data && searchData.data.length > 0) {
+          const mangaId = searchData.data[0].mal_id;
+          const detailResponse = await fetch(`https://api.jikan.moe/v4/manga/${mangaId}/full`);
+          if (detailResponse.ok) {
+            const detailData = await detailResponse.json();
+            return { data: detailData.data, source: 'jikan-search' };
+          }
         }
       }
+    } catch (searchError) {
+      console.log('Search fallback failed:', searchError);
     }
-  } catch (error) {
-    console.log('Alternative search failed');
-  }
 
-  throw new Error('Failed to fetch manga details');
+    throw new Error('Failed to fetch manga details from all sources');
+  }
 };
 
 const fetchMangaPictures = async (id: string) => {
@@ -48,7 +62,6 @@ const fetchMangaPictures = async (id: string) => {
     console.log('Failed to fetch pictures');
   }
   
-  // Return empty data if pictures can't be fetched
   return { data: [] };
 };
 
@@ -56,7 +69,6 @@ const MangaDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  // Add scroll restoration for this page only
   useScrollRestoration(`manga-detail-${id}`);
 
   const { data: mangaData, isLoading: mangaLoading, error: mangaError } = useQuery({
@@ -76,14 +88,12 @@ const MangaDetailPage = () => {
   const handleBackToHome = () => {
     console.log('Navigating back to home from manga detail page');
     
-    // Store context about where user came from for auto-scroll fallback
     sessionStorage.setItem('return-context', JSON.stringify({
       type: 'manga',
       timestamp: Date.now(),
       fromDetailPage: true
     }));
     
-    // Use simple navigation to home
     navigate('/');
   };
 
@@ -117,6 +127,8 @@ const MangaDetailPage = () => {
   const manga = mangaData.data;
   const pictures = picturesData?.data || [];
 
+  console.log('Manga data source:', mangaData.source);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Optimized Hero Section for Mobile */}
@@ -128,7 +140,6 @@ const MangaDetailPage = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
         
-        {/* Enhanced Back Button with Better Mobile Positioning */}
         <div className="absolute top-3 left-3 md:top-8 md:left-8 z-20">
           <button
             onClick={handleBackToHome}
@@ -140,7 +151,6 @@ const MangaDetailPage = () => {
           </button>
         </div>
 
-        {/* Optimized Content Layout for Mobile */}
         <div className="absolute bottom-3 sm:bottom-4 md:bottom-8 left-3 sm:left-4 md:left-8 right-3 sm:right-4 md:right-8">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-8 items-center sm:items-start">
             <img
@@ -165,12 +175,10 @@ const MangaDetailPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-12 space-y-6 sm:space-y-8 md:space-y-12">
-        {/* Image Gallery */}
         {!picturesLoading && (
           <ImageGallery images={pictures} title={manga.title} />
         )}
 
-        {/* Detailed Information */}
         <DetailedInfo data={manga} type="manga" />
       </div>
     </div>
