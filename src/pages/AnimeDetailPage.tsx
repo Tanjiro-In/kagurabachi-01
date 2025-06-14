@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -55,6 +55,10 @@ const fetchAnimePictures = async (id: string) => {
 const AnimeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  // Get the referring page from URL params
+  const from = searchParams.get('from') || '/';
   
   // Add scroll restoration for this page only
   useScrollRestoration(`anime-detail-${id}`);
@@ -74,22 +78,10 @@ const AnimeDetailPage = () => {
   });
 
   const handleBackToHome = () => {
-    console.log('Navigating back to home, preserving scroll state');
+    console.log('Navigating back to:', from);
     
-    // Save current home page scroll position if it exists
-    const scrollPositions = JSON.parse(
-      sessionStorage.getItem('scroll-positions') || '{}'
-    );
-    
-    // Only update navigation state, keep existing scroll position
-    if (window.history.pushState) {
-      window.history.replaceState(
-        { ...(window.history.state || {}), fromDetailPage: true },
-        ''
-      );
-    }
-    
-    navigate('/');
+    // Navigate back to the referring page
+    navigate(from);
   };
 
   if (animeLoading) {

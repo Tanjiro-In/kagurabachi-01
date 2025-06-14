@@ -1,28 +1,19 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import HeroSection from '../components/HeroSection';
-import AIRecommendations from '../components/AIRecommendations';
 import TrendingContentSection from '../components/TrendingContentSection';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { useQuery } from '@tanstack/react-query';
 import { fetchTrendingAnimeAniList, fetchTrendingMangaAniList } from '../services/anilistApi';
 import { convertAniListToJikan } from '../utils/dataConverter';
 
-// Keep some genres data for the AI recommendations component
-const POPULAR_GENRES = [
-  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Romance', 
-  'Sci-Fi', 'Slice of Life', 'Supernatural', 'Thriller', 'Mystery', 'Horror'
-];
-
-const createMockGenres = () => {
-  return POPULAR_GENRES.map((name, index) => ({ mal_id: index + 1, name }));
-};
-
-const Index = () => {
+const TrendingPage = () => {
   const navigate = useNavigate();
   
-  // Use home page scroll restoration
-  useScrollRestoration('/');
+  // Use route-specific scroll restoration
+  useScrollRestoration('/trending');
 
   // Fetch trending anime from AniList
   const {
@@ -56,31 +47,29 @@ const Index = () => {
     navigate(`/search/manga?q=${encodeURIComponent(query)}`);
   };
 
-  const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
-    if (yearRange === 'reset') {
-      return;
-    }
-
-    const genresParam = genres.join(',');
-    navigate(`/recommendations?genres=${encodeURIComponent(genresParam)}&year=${encodeURIComponent(yearRange)}`);
+  const handleBackToHome = () => {
+    navigate('/');
   };
-
-  const mockGenres = createMockGenres();
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <button
+            onClick={handleBackToHome}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span>Back to Home</span>
+          </button>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <HeroSection onAnimeSearch={handleAnimeSearch} onMangaSearch={handleMangaSearch} />
 
       <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20">
-        {/* AI Recommendations */}
-        <AIRecommendations 
-          animeGenres={mockGenres} 
-          mangaGenres={mockGenres} 
-          onRecommendationRequest={handleRecommendationRequest} 
-          isLoading={false} 
-        />
-
         {/* Trending Content */}
         <TrendingContentSection
           trendingAnimeData={trendingAnimeData}
@@ -93,4 +82,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default TrendingPage;
