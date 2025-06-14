@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import HeroSection from '../components/HeroSection';
+import SearchBar from '../components/SearchBar';
+import MangaSearchBar from '../components/MangaSearchBar';
 import AIRecommendations from '../components/AIRecommendations';
 import RecommendationSections from '../components/RecommendationSections';
-import SearchResultsSection from '../components/SearchResultsSection';
-import TrendingContentSection from '../components/TrendingContentSection';
+import TrendingSection from '../components/TrendingSection';
+import LoadingSpinner from '../components/LoadingSpinner';
+import AnimeCard from '../components/AnimeCard';
 import { usePageState } from '../hooks/usePageState';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { 
@@ -255,7 +257,31 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <HeroSection onAnimeSearch={handleAnimeSearch} onMangaSearch={handleMangaSearch} />
+      <div className="relative py-12 md:py-20 px-4">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent"></div>
+        <div className="relative max-w-6xl mx-auto text-center space-y-6 md:space-y-8">
+          <div className="space-y-2 md:space-y-4">
+            <h1 className="text-4xl md:text-5xl lg:text-7xl gradient-text font-bold">
+              Kagura<span className="text-foreground">bachi</span>
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
+              Discover the best anime and manga recommendations with AI-powered suggestions
+            </p>
+          </div>
+          
+          {/* Dual Search Bars */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 max-w-5xl mx-auto">
+            <div className="space-y-2">
+              <h3 className="text-xs md:text-sm font-medium text-muted-foreground uppercase tracking-wider">Search Anime</h3>
+              <SearchBar onSearch={handleAnimeSearch} />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xs md:text-sm font-medium text-muted-foreground uppercase tracking-wider">Search Manga</h3>
+              <MangaSearchBar onSearch={handleMangaSearch} />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20">
         {/* AI Recommendations */}
@@ -281,24 +307,74 @@ const Index = () => {
           />
         )}
 
-        {/* Search Results */}
-        <SearchResultsSection
-          isSearchingAnime={pageState.isSearchingAnime}
-          isSearchingManga={pageState.isSearchingManga}
-          animeSearchQuery={pageState.animeSearchQuery}
-          mangaSearchQuery={pageState.mangaSearchQuery}
-          animeSearchResults={pageState.animeSearchResults}
-          mangaSearchResults={pageState.mangaSearchResults}
-        />
+        {/* Anime Search Results */}
+        {pageState.isSearchingAnime && (
+          <section className="space-y-4 md:space-y-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
+              Anime Results for "{pageState.animeSearchQuery}"
+            </h2>
+            {pageState.animeSearchResults.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+                {pageState.animeSearchResults.map(anime => (
+                  <AnimeCard key={anime.mal_id} anime={anime} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 md:py-12 px-4">
+                <p className="text-muted-foreground text-base md:text-lg">No anime found matching your search criteria.</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Manga Search Results */}
+        {pageState.isSearchingManga && (
+          <section className="space-y-4 md:space-y-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-center gradient-text px-4">
+              Manga Results for "{pageState.mangaSearchQuery}"
+            </h2>
+            {pageState.mangaSearchResults.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+                {pageState.mangaSearchResults.map(manga => (
+                  <AnimeCard key={manga.mal_id} anime={manga} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 md:py-12 px-4">
+                <p className="text-muted-foreground text-base md:text-lg">No manga found matching your search criteria.</p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Trending Content - only show if not searching or getting recommendations */}
         {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
-          <TrendingContentSection
-            trendingAnimeData={trendingAnimeData}
-            trendingMangaData={trendingMangaData}
-            trendingAnimeLoading={trendingAnimeLoading}
-            trendingMangaLoading={trendingMangaLoading}
-          />
+          <>
+            {/* Trending Anime */}
+            {trendingAnimeLoading ? (
+              <LoadingSpinner />
+            ) : (
+              <TrendingSection animes={trendingAnimeData || []} title="Trending Anime" />
+            )}
+
+            {/* Trending Manga */}
+            {trendingMangaLoading ? (
+              <LoadingSpinner />
+            ) : trendingMangaData && (
+              <section className="space-y-4 md:space-y-6">
+                <div className="text-center space-y-2">
+                  <h2 className="text-2xl md:text-3xl font-bold gradient-text">Trending Manga</h2>
+                  <div className="w-16 md:w-24 h-1 bg-gradient-to-r from-primary to-purple-400 mx-auto rounded-full"></div>
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
+                  {trendingMangaData.map((manga: any) => (
+                    <AnimeCard key={manga.mal_id} anime={manga} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
     </div>
