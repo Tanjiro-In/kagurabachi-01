@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchBar from '../components/SearchBar';
@@ -32,7 +31,8 @@ const createMockGenres = () => {
 
 const Index = () => {
   const { pageState, updatePageState, resetPageState, updateExpandedState, updateLoadingState } = usePageState();
-  const { clearScrollPosition } = useScrollRestoration('home');
+  // Use default scroll key (pathname) instead of 'home' for consistency
+  const { clearScrollPosition } = useScrollRestoration();
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
@@ -69,7 +69,7 @@ const Index = () => {
     }
   });
 
-  // Mark content as loaded when data is available
+  // Mark content as loaded when data is available and notify scroll restoration
   useEffect(() => {
     const hasData = trendingAnimeData || trendingMangaData || 
                    pageState.animeSearchResults.length > 0 || 
@@ -78,8 +78,18 @@ const Index = () => {
                    pageState.mangaRecommendations.length > 0;
     
     if (hasData && !contentLoaded) {
-      // Small delay to ensure DOM is updated
-      setTimeout(() => setContentLoaded(true), 100);
+      // Mark content as loaded for scroll restoration
+      setTimeout(() => {
+        setContentLoaded(true);
+        // Signal that content is ready for scroll restoration
+        window.dispatchEvent(new CustomEvent('home-content-ready', {
+          detail: { 
+            section: pageState.lastActiveSection,
+            hasSearchResults: pageState.isSearchingAnime || pageState.isSearchingManga,
+            hasRecommendations: pageState.hasRecommendations
+          }
+        }));
+      }, 100);
     }
   }, [trendingAnimeData, trendingMangaData, pageState, contentLoaded]);
 
