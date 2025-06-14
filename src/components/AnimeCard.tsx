@@ -18,9 +18,14 @@ interface AnimeCardProps {
     published?: {
       from: string;
     };
+    aired?: {
+      from: string;
+    };
     chapters?: number;
     volumes?: number;
     episodes?: number;
+    authors?: any[];
+    studios?: any[];
   };
 }
 
