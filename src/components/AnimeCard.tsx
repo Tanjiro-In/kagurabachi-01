@@ -18,6 +18,9 @@ interface AnimeCardProps {
     published?: {
       from: string;
     };
+    chapters?: number;
+    volumes?: number;
+    episodes?: number;
   };
 }
 
@@ -30,9 +33,24 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
   };
 
   const handleCardClick = () => {
-    // Use the mal_id for navigation
     const id = anime.mal_id;
-    if (anime.type === 'Manga' || anime.type === 'MANGA') {
+    
+    // Better detection logic for manga vs anime
+    const isManga = 
+      anime.type === 'Manga' || 
+      anime.type === 'MANGA' ||
+      anime.type === 'manga' ||
+      anime.type === 'Manhwa' ||
+      anime.type === 'Manhua' ||
+      anime.type === 'Novel' ||
+      anime.type === 'Light Novel' ||
+      anime.type === 'One-shot' ||
+      // If it has chapters/volumes but no episodes, it's likely manga
+      ((anime.chapters || anime.volumes) && !anime.episodes) ||
+      // If it has published date but no episodes, it's likely manga
+      (anime.published && !anime.episodes);
+    
+    if (isManga) {
       navigate(`/manga/${id}`);
     } else {
       navigate(`/anime/${id}`);
