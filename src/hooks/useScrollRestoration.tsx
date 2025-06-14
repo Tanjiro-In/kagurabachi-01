@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -15,7 +16,6 @@ export const useScrollRestoration = (key?: string) => {
   const hasRestoredRef = useRef(false);
   const timeoutRef = useRef<number>();
 
-  // Save scroll position
   const saveScrollPosition = useCallback(() => {
     if (typeof window === 'undefined' || isRestoringRef.current) return;
 
@@ -23,19 +23,16 @@ export const useScrollRestoration = (key?: string) => {
       const scrollPositions = JSON.parse(
         sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
       );
-
       scrollPositions[scrollKey] = {
         x: window.scrollX,
         y: window.scrollY,
       };
-
       sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
     } catch (e) {
       console.warn('Failed to save scroll position:', e);
     }
   }, [scrollKey]);
 
-  // Restore scroll position with proper timing
   const restoreScrollPosition = useCallback(() => {
     if (typeof window === 'undefined' || hasRestoredRef.current) return;
 
@@ -86,7 +83,6 @@ export const useScrollRestoration = (key?: string) => {
     }
   }, [scrollKey]);
 
-  // Save scroll position on scroll events
   useEffect(() => {
     let timeoutId: number;
 
@@ -113,7 +109,6 @@ export const useScrollRestoration = (key?: string) => {
     };
   }, [saveScrollPosition]);
 
-  // Restore scroll position when component mounts
   useEffect(() => {
     hasRestoredRef.current = false;
 
@@ -121,33 +116,14 @@ export const useScrollRestoration = (key?: string) => {
       clearTimeout(timeoutRef.current);
     }
 
-    const restoreWithDelay = () => {
-      restoreScrollPosition();
-    };
-
-    if (document.readyState === 'complete') {
-      restoreWithDelay();
-    } else {
-      const handleLoad = () => {
-        restoreWithDelay();
-        window.removeEventListener('load', handleLoad);
-      };
-
-      window.addEventListener('load', handleLoad);
-
-      if (document.readyState === 'interactive') {
-        setTimeout(restoreWithDelay, 50);
-      }
-    }
-
+    // do not auto-restore on mount — wait for content to load externally
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [scrollKey, restoreScrollPosition]);
+  }, [scrollKey]);
 
-  // Clear stored scroll position
   const clearScrollPosition = useCallback(
     (keyToClear?: string) => {
       if (typeof window === 'undefined') return;
@@ -156,7 +132,6 @@ export const useScrollRestoration = (key?: string) => {
         const scrollPositions = JSON.parse(
           sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
         );
-
         delete scrollPositions[keyToClear || scrollKey];
         sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
       } catch (e) {
@@ -169,5 +144,8 @@ export const useScrollRestoration = (key?: string) => {
     [scrollKey]
   );
 
-  return { clearScrollPosition };
+  return {
+    clearScrollPosition,
+    restoreScrollPosition, // <- now exposed for manual trigger
+  };
 };
