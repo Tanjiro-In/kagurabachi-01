@@ -8,7 +8,14 @@ interface ScrollPosition {
   timestamp: number;
 }
 
+interface SearchContext {
+  type: 'anime' | 'manga';
+  query: string;
+  timestamp: number;
+}
+
 const SCROLL_RESTORATION_KEY = 'scroll-positions';
+const SEARCH_CONTEXT_KEY = 'search-context';
 
 export const useScrollRestoration = (key?: string) => {
   const location = useLocation();
@@ -16,6 +23,20 @@ export const useScrollRestoration = (key?: string) => {
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Store search context
+  const storeSearchContext = useCallback((type: 'anime' | 'manga', query: string) => {
+    if (typeof window === 'undefined') return;
+    
+    const searchContext: SearchContext = {
+      type,
+      query,
+      timestamp: Date.now()
+    };
+    
+    sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(searchContext));
+    console.log('Stored search context:', searchContext);
+  }, []);
 
   // Save scroll position with debouncing
   const saveScrollPosition = useCallback(() => {
@@ -35,68 +56,127 @@ export const useScrollRestoration = (key?: string) => {
     console.log('Saved scroll position for', scrollKey, scrollPositions[scrollKey]);
   }, [scrollKey]);
 
-  // Enhanced auto-scroll fallback for home page
+  // Enhanced auto-scroll for both detail page returns and search interactions
   const performAutoScroll = useCallback(() => {
     if (scrollKey !== '/') return;
 
+    // Check for search context first
+    const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
     const returnContext = sessionStorage.getItem('return-context');
-    if (!returnContext) return;
+    
+    let contextToUse = null;
+    let isSearchContext = false;
 
-    try {
-      const context = JSON.parse(returnContext);
-      if (!context.fromDetailPage || Date.now() - context.timestamp > 10000) {
-        // Clear old context
-        sessionStorage.removeItem('return-context');
-        return;
+    // Prioritize search context if it's more recent
+    if (searchContext) {
+      try {
+        const searchCtx = JSON.parse(searchContext);
+        if (Date.now() - searchCtx.timestamp < 30000) { // 30 seconds validity
+          contextToUse = searchCtx;
+          isSearchContext = true;
+        }
+      } catch (error) {
+        console.error('Error parsing search context:', error);
+        sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
       }
+    }
 
-      console.log('Performing auto-scroll for', context.type);
+    // Fall back to return context if no valid search context
+    if (!contextToUse && returnContext) {
+      try {
+        const returnCtx = JSON.parse(returnContext);
+        if (returnCtx.fromDetailPage && Date.now() - returnCtx.timestamp < 10000) {
+          contextToUse = returnCtx;
+          isSearchContext = false;
+        }
+      } catch (error) {
+        console.error('Error parsing return context:', error);
+        sessionStorage.removeItem('return-context');
+      }
+    }
 
-      // Find the appropriate section to scroll to
-      let targetElement: Element | null = null;
-      
-      if (context.type === 'anime') {
-        // Look for anime sections in order of preference
+    if (!contextToUse) return;
+
+    console.log('Performing auto-scroll for', contextToUse.type, isSearchContext ? '(search context)' : '(detail page context)');
+
+    // Find the appropriate section to scroll to
+    let targetElement: Element | null = null;
+    
+    if (contextToUse.type === 'anime') {
+      // For search context, prioritize search results
+      if (isSearchContext) {
+        targetElement = 
+          document.querySelector('[data-section="anime-search"]') ||
+          document.querySelector('[data-section="anime-recommendations"]') ||
+          document.querySelector('[data-section="trending-anime"]');
+      } else {
+        // For detail page returns, prioritize recommendations/trending
         targetElement = 
           document.querySelector('[data-section="anime-recommendations"]') ||
           document.querySelector('[data-section="anime-search"]') ||
-          document.querySelector('[data-section="trending-anime"]') ||
-          document.querySelector('h2:contains("Recommended Anime")') ||
-          document.querySelector('h2:contains("Trending Anime")');
-      } else if (context.type === 'manga') {
-        // Look for manga sections
+          document.querySelector('[data-section="trending-anime"]');
+      }
+    } else if (contextToUse.type === 'manga') {
+      // For search context, prioritize search results
+      if (isSearchContext) {
+        targetElement = 
+          document.querySelector('[data-section="manga-search"]') ||
+          document.querySelector('[data-section="manga-recommendations"]') ||
+          document.querySelector('[data-section="trending-manga"]');
+      } else {
+        // For detail page returns, prioritize recommendations/trending
         targetElement = 
           document.querySelector('[data-section="manga-recommendations"]') ||
           document.querySelector('[data-section="manga-search"]') ||
-          document.querySelector('[data-section="trending-manga"]') ||
-          document.querySelector('h2:contains("Recommended Manga")') ||
-          document.querySelector('h2:contains("Trending Manga")');
+          document.querySelector('[data-section="trending-manga"]');
       }
+    }
 
-      if (targetElement) {
-        console.log('Auto-scrolling to', context.type, 'section');
-        
-        // Smooth scroll to the section with a small offset
-        const elementTop = targetElement.getBoundingClientRect().top + window.scrollY;
-        const offset = 100; // 100px offset from top
-        
-        window.scrollTo({
-          top: Math.max(0, elementTop - offset),
-          behavior: 'smooth'
-        });
+    if (targetElement) {
+      console.log('Auto-scrolling to', contextToUse.type, 'section');
+      
+      // Smooth scroll to the section with a small offset
+      const elementTop = targetElement.getBoundingClientRect().top + window.scrollY;
+      const offset = 100; // 100px offset from top
+      
+      window.scrollTo({
+        top: Math.max(0, elementTop - offset),
+        behavior: 'smooth'
+      });
 
-        // Clear the context after successful scroll
-        setTimeout(() => {
+      // Clear the appropriate context after successful scroll
+      setTimeout(() => {
+        if (isSearchContext) {
+          sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
+        } else {
           sessionStorage.removeItem('return-context');
-        }, 2000);
-      } else {
-        console.log('Target section not found for auto-scroll');
-      }
-    } catch (error) {
-      console.error('Error in auto-scroll:', error);
-      sessionStorage.removeItem('return-context');
+        }
+      }, 2000);
+    } else {
+      console.log('Target section not found for auto-scroll');
     }
   }, [scrollKey]);
+
+  // Detect browser back navigation
+  useEffect(() => {
+    if (scrollKey !== '/') return;
+
+    const handlePopState = (event: PopStateEvent) => {
+      console.log('Browser back navigation detected');
+      
+      // Small delay to ensure content is rendered
+      setTimeout(() => {
+        performAutoScroll();
+      }, 300);
+    };
+
+    // Listen for browser back/forward navigation
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [scrollKey, performAutoScroll]);
 
   // Restore scroll position
   const restoreScrollPosition = useCallback(async () => {
@@ -209,5 +289,5 @@ export const useScrollRestoration = (key?: string) => {
     isRestoringRef.current = false;
   }, [scrollKey]);
 
-  return { clearScrollPosition };
+  return { clearScrollPosition, storeSearchContext };
 };

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import HeroSection from '../components/HeroSection';
@@ -29,8 +30,8 @@ const createMockGenres = () => {
 
 const Index = () => {
   const { pageState, updatePageState, resetPageState, updateExpandedState, updateLoadingState } = usePageState();
-  // Use default scroll key (pathname) instead of 'home' for consistency
-  const { clearScrollPosition } = useScrollRestoration();
+  // Get both scroll restoration functions
+  const { clearScrollPosition, storeSearchContext } = useScrollRestoration();
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isLoadingMoreAnime, setIsLoadingMoreAnime] = useState(false);
   const [isLoadingMoreManga, setIsLoadingMoreManga] = useState(false);
@@ -101,6 +102,9 @@ const Index = () => {
       return;
     }
     
+    // Store search context for auto-scroll
+    storeSearchContext('anime', query);
+    
     updatePageState({
       isSearchingAnime: true,
       animeSearchQuery: query,
@@ -133,6 +137,9 @@ const Index = () => {
       });
       return;
     }
+    
+    // Store search context for auto-scroll
+    storeSearchContext('manga', query);
     
     updatePageState({
       isSearchingManga: true,
