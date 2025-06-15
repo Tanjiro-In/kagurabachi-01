@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import HeroSection from '../components/HeroSection';
@@ -163,38 +164,10 @@ const Index = () => {
     }
   };
 
-  const handleResetAnimeSearch = () => {
-    updatePageState({
-      animeSearchResults: [],
-      isSearchingAnime: false,
-      animeSearchQuery: ''
-    });
-  };
-
-  const handleResetMangaSearch = () => {
-    updatePageState({
-      mangaSearchResults: [],
-      isSearchingManga: false,
-      mangaSearchQuery: ''
-    });
-  };
-
   const handleRecommendationRequest = async (genres: string[], yearRange: string) => {
-    // Handle reset case - only reset recommendations, not search results
+    // Handle reset case
     if (yearRange === 'reset') {
-      updatePageState({
-        animeRecommendations: [],
-        mangaRecommendations: [],
-        hasRecommendations: false,
-        currentGenres: [],
-        currentYearRange: 'any',
-        animeCurrentPage: 1,
-        mangaCurrentPage: 1,
-        hasMoreAnime: false,
-        hasMoreManga: false
-      });
-      setIsLoadingRecommendations(false);
-      updateLoadingState('recommendations', false);
+      handleReset();
       return;
     }
 
@@ -323,8 +296,6 @@ const Index = () => {
           mangaSearchQuery={pageState.mangaSearchQuery}
           animeSearchResults={pageState.animeSearchResults}
           mangaSearchResults={pageState.mangaSearchResults}
-          onResetAnimeSearch={handleResetAnimeSearch}
-          onResetMangaSearch={handleResetMangaSearch}
         />
 
         {/* Trending Content - only show if not searching or getting recommendations */}
