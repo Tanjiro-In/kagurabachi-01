@@ -79,37 +79,41 @@ export const usePageState = () => {
     
     // Only handle home page navigation
     if (currentPath === '/') {
-      const isFromDetailPage = window.history.state?.fromDetailPage === true;
+      // Check if this is navigation back from detail page using React Router state
+      const isFromDetailPage = location.state?.fromDetailPage === true;
+      const preserveState = location.state?.preserveState === true;
       
       console.log('Navigation to home page detected:', {
         isFromDetailPage,
-        historyState: window.history.state,
-        performanceEntries: window.performance?.getEntriesByType?.('navigation')
+        preserveState,
+        locationState: location.state,
+        pathname: currentPath
       });
       
       // Don't reset state when navigating back from detail pages
-      if (isFromDetailPage) {
+      if (isFromDetailPage && preserveState) {
         console.log('Preserving state - user came from detail page');
-        // Clear the flag so subsequent navigations work normally
-        if (window.history.replaceState) {
-          window.history.replaceState(
-            { ...(window.history.state || {}), fromDetailPage: false },
-            ''
-          );
-        }
+        // Clear the navigation state to prevent issues on subsequent navigations
+        window.history.replaceState(
+          null,
+          '',
+          window.location.pathname + window.location.search
+        );
         return;
       }
       
-      // Check if this is a page refresh vs new navigation
-      const navigationEntries = window.performance?.getEntriesByType?.('navigation') as any[];
-      const isRefresh = navigationEntries?.[0]?.type === 'reload';
+      // Only reset on actual page refresh (not navigation)
+      // Check if this is a genuine page refresh by looking at performance navigation timing
+      const isPageRefresh = window.performance?.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
       
-      if (isRefresh) {
+      if (isPageRefresh) {
         console.log('Page refresh detected - clearing state');
         resetPageState();
+      } else {
+        console.log('Navigation detected (not refresh) - preserving state');
       }
     }
-  }, [location.pathname]);
+  }, [location]);
 
   const updatePageState = (updates: Partial<PageState>) => {
     setPageState(prev => {

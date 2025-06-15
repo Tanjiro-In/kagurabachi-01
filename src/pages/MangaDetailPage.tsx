@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -88,13 +87,28 @@ const MangaDetailPage = () => {
   const handleBackToHome = () => {
     console.log('Navigating back to home from manga detail page');
     
-    sessionStorage.setItem('return-context', JSON.stringify({
-      type: 'manga',
-      timestamp: Date.now(),
-      fromDetailPage: true
-    }));
+    // Get the current page state to preserve context
+    const savedPageState = sessionStorage.getItem('pageState');
+    let lastActiveSection = 'trending';
     
-    navigate('/');
+    if (savedPageState) {
+      try {
+        const pageState = JSON.parse(savedPageState);
+        lastActiveSection = pageState.lastActiveSection || 'trending';
+      } catch (error) {
+        console.log('Failed to parse saved page state');
+      }
+    }
+    
+    // Navigate with proper state to prevent reset
+    navigate('/', { 
+      state: { 
+        fromDetailPage: true, 
+        type: 'manga',
+        preserveState: true,
+        lastActiveSection
+      } 
+    });
   };
 
   if (mangaLoading) {

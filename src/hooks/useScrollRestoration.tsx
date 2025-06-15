@@ -60,38 +60,50 @@ export const useScrollRestoration = (key?: string) => {
   const performContextAwareScroll = useCallback(() => {
     if (scrollKey !== '/') return;
 
-    // Check for any navigation context
-    const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
-    const returnContext = sessionStorage.getItem('return-context');
+    // Check navigation state first
+    const isFromDetailPage = location.state?.fromDetailPage;
+    const navigationSection = location.state?.lastActiveSection;
     
     let targetType = null;
     let contextSource = null;
 
-    // Prioritize search context if recent
-    if (searchContext) {
-      try {
-        const searchCtx = JSON.parse(searchContext);
-        if (Date.now() - searchCtx.timestamp < 30000) {
-          targetType = searchCtx.type;
-          contextSource = 'search';
+    if (isFromDetailPage && navigationSection) {
+      console.log('Using navigation state for scroll restoration:', navigationSection);
+      
+      // Map sections to types for scrolling
+      if (navigationSection === 'search') {
+        const pageState = sessionStorage.getItem('pageState');
+        if (pageState) {
+          try {
+            const parsed = JSON.parse(pageState);
+            if (parsed.isSearchingAnime) targetType = 'anime';
+            else if (parsed.isSearchingManga) targetType = 'manga';
+          } catch (error) {
+            console.error('Error parsing page state for scroll:', error);
+          }
         }
-      } catch (error) {
-        console.error('Error parsing search context:', error);
-        sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
+      } else if (navigationSection === 'recommendations') {
+        // For recommendations, we can scroll to either anime or manga section
+        // Default to anime for now, but this could be enhanced
+        targetType = 'anime';
       }
+      contextSource = 'navigation-state';
     }
 
-    // Fall back to return context
-    if (!targetType && returnContext) {
-      try {
-        const returnCtx = JSON.parse(returnContext);
-        if (returnCtx.fromDetailPage && Date.now() - returnCtx.timestamp < 30000) {
-          targetType = returnCtx.type;
-          contextSource = 'detail-return';
+    // Fall back to search context if no navigation state
+    if (!targetType) {
+      const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
+      if (searchContext) {
+        try {
+          const searchCtx = JSON.parse(searchContext);
+          if (Date.now() - searchCtx.timestamp < 30000) {
+            targetType = searchCtx.type;
+            contextSource = 'search-context';
+          }
+        } catch (error) {
+          console.error('Error parsing search context:', error);
+          sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
         }
-      } catch (error) {
-        console.error('Error parsing return context:', error);
-        sessionStorage.removeItem('return-context');
       }
     }
 
@@ -137,10 +149,8 @@ export const useScrollRestoration = (key?: string) => {
 
         // Clear context after successful scroll
         setTimeout(() => {
-          if (contextSource === 'search') {
+          if (contextSource === 'search-context') {
             sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
-          } else {
-            sessionStorage.removeItem('return-context');
           }
           console.log(`Cleared ${contextSource} context after scroll`);
         }, 1000);
@@ -158,30 +168,7 @@ export const useScrollRestoration = (key?: string) => {
 
     // Start the scroll attempt
     setTimeout(() => attemptScroll(), 100);
-  }, [scrollKey]);
-
-  // Detect browser back navigation
-  useEffect(() => {
-    if (scrollKey !== '/') return;
-
-    const handlePopState = () => {
-      console.log('Browser back navigation detected');
-      
-      setTimeout(() => {
-        const scrollPositions = JSON.parse(
-          sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
-        );
-        const savedPosition: ScrollPosition = scrollPositions[scrollKey];
-        
-        // Always try context-aware scroll on back navigation
-        // Even if there's a saved position, it might be stale
-        performContextAwareScroll();
-      }, 200);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [scrollKey, performContextAwareScroll]);
+  }, [scrollKey, location.state]);
 
   // Enhanced restore scroll position
   const restoreScrollPosition = useCallback(async () => {
@@ -199,6 +186,15 @@ export const useScrollRestoration = (key?: string) => {
     console.log('Attempting to restore scroll for key:', scrollKey);
     console.log('Saved position:', savedPosition);
     console.log('Current scroll position:', { x: window.scrollX, y: window.scrollY });
+    console.log('Navigation state:', location.state);
+    
+    // Check if we're coming from a detail page first
+    if (location.state?.fromDetailPage && location.state?.preserveState) {
+      console.log('Coming from detail page - prioritizing context-aware scroll');
+      setTimeout(performContextAwareScroll, 300);
+      hasRestoredRef.current = true;
+      return;
+    }
     
     // Check if we have a meaningful saved position
     if (savedPosition && savedPosition.y > 100) {
@@ -246,7 +242,7 @@ export const useScrollRestoration = (key?: string) => {
       // Use context-aware scroll as primary fallback
       setTimeout(performContextAwareScroll, 300);
     }
-  }, [scrollKey, performContextAwareScroll]);
+  }, [scrollKey, performContextAwareScroll, location.state]);
 
   // Handle scroll events
   useEffect(() => {
