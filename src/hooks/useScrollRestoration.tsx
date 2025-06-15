@@ -56,7 +56,7 @@ export const useScrollRestoration = (key?: string) => {
     console.log('Saved scroll position for', scrollKey, scrollPositions[scrollKey]);
   }, [scrollKey]);
 
-  // Enhanced auto-scroll for both detail page returns and search interactions
+  // Enhanced auto-scroll for navigation contexts only (when no exact position exists)
   const performAutoScroll = useCallback(() => {
     if (scrollKey !== '/') return;
 
@@ -164,9 +164,17 @@ export const useScrollRestoration = (key?: string) => {
     const handlePopState = (event: PopStateEvent) => {
       console.log('Browser back navigation detected');
       
-      // Small delay to ensure content is rendered
+      // Small delay to ensure content is rendered, then check for saved position first
       setTimeout(() => {
-        performAutoScroll();
+        const scrollPositions = JSON.parse(
+          sessionStorage.getItem(SCROLL_RESTORATION_KEY) || '{}'
+        );
+        const savedPosition: ScrollPosition = scrollPositions[scrollKey];
+        
+        if (!savedPosition || (savedPosition.x === 0 && savedPosition.y === 0)) {
+          // Only use auto-scroll if no exact position is saved
+          performAutoScroll();
+        }
       }, 300);
     };
 
@@ -178,7 +186,7 @@ export const useScrollRestoration = (key?: string) => {
     };
   }, [scrollKey, performAutoScroll]);
 
-  // Restore scroll position
+  // Enhanced restore scroll position with better validation and retry logic
   const restoreScrollPosition = useCallback(async () => {
     if (typeof window === 'undefined' || hasRestoredRef.current || isRestoringRef.current) {
       return;
@@ -196,7 +204,7 @@ export const useScrollRestoration = (key?: string) => {
       isRestoringRef.current = true;
       hasRestoredRef.current = true;
       
-      console.log('Restoring scroll position:', savedPosition);
+      console.log('Restoring exact scroll position:', savedPosition);
       
       // Wait for content to load
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -208,23 +216,36 @@ export const useScrollRestoration = (key?: string) => {
         behavior: 'auto'
       });
       
-      // Verify restoration worked
-      setTimeout(() => {
-        const actualY = window.scrollY;
-        const targetY = savedPosition.y;
-        
-        if (Math.abs(actualY - targetY) > 100) {
-          console.log('Native scroll restoration failed, trying auto-scroll fallback');
-          performAutoScroll();
-        } else {
-          console.log('Scroll restoration successful');
-        }
-        
-        isRestoringRef.current = false;
-      }, 300);
+      // Enhanced verification with retry logic
+      const verifyAndRetry = (attempt = 1, maxAttempts = 3) => {
+        setTimeout(() => {
+          const actualY = window.scrollY;
+          const targetY = savedPosition.y;
+          const tolerance = 200; // Increased tolerance to 200px
+          
+          if (Math.abs(actualY - targetY) > tolerance && attempt < maxAttempts) {
+            console.log(`Scroll restoration attempt ${attempt} failed, retrying...`);
+            window.scrollTo({
+              left: savedPosition.x,
+              top: savedPosition.y,
+              behavior: 'auto'
+            });
+            verifyAndRetry(attempt + 1, maxAttempts);
+          } else if (Math.abs(actualY - targetY) <= tolerance) {
+            console.log('Exact scroll position restoration successful');
+            isRestoringRef.current = false;
+          } else {
+            console.log('Exact scroll restoration failed after all attempts, but position is acceptable');
+            isRestoringRef.current = false;
+            // Do NOT fallback to auto-scroll here - the position is close enough
+          }
+        }, 300 * attempt); // Increasing delay for each attempt
+      };
+      
+      verifyAndRetry();
     } else {
       console.log('No saved position found for', scrollKey, '- trying auto-scroll');
-      // If no saved position, try auto-scroll fallback
+      // Only use auto-scroll if there's absolutely no saved position
       setTimeout(performAutoScroll, 500);
     }
   }, [scrollKey, performAutoScroll]);
