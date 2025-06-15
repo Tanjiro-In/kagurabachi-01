@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -58,11 +57,23 @@ const fetchMangaDetails = async (id: string, expectedTitle?: string) => {
   }
 };
 
-const fetchMangaPictures = async (mangaData: any) => {
-  // Only fetch pictures if we have a valid MAL ID and the title matches
+const fetchMangaPictures = async (mangaData: any, expectedTitle?: string) => {
+  // Only fetch pictures if we have a valid MAL ID
   if (!mangaData?.mal_id) {
     console.log('No MAL ID available for pictures');
     return { data: [] };
+  }
+
+  // If we have an expected title, validate it matches before fetching pictures
+  if (expectedTitle && mangaData.title) {
+    const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const expectedNormalized = normalizeTitle(expectedTitle);
+    const actualNormalized = normalizeTitle(mangaData.title);
+    
+    if (!actualNormalized.includes(expectedNormalized) && !expectedNormalized.includes(actualNormalized)) {
+      console.log(`Title mismatch for pictures - Expected: ${expectedTitle}, Got: ${mangaData.title}. Skipping picture fetch.`);
+      return { data: [] };
+    }
   }
 
   try {
@@ -70,7 +81,7 @@ const fetchMangaPictures = async (mangaData: any) => {
     const response = await fetch(`https://api.jikan.moe/v4/manga/${mangaData.mal_id}/pictures`);
     if (response.ok) {
       const picturesData = await response.json();
-      console.log('Successfully fetched', picturesData.data?.length || 0, 'pictures');
+      console.log('Successfully fetched', picturesData.data?.length || 0, 'pictures for', mangaData.title);
       return picturesData;
     } else {
       console.log('Failed to fetch pictures, status:', response.status);
@@ -98,8 +109,8 @@ const MangaDetailPage = () => {
   });
 
   const { data: picturesData, isLoading: picturesLoading } = useQuery({
-    queryKey: ['manga-pictures', mangaData?.data?.mal_id, mangaData?.data?.title],
-    queryFn: () => fetchMangaPictures(mangaData?.data),
+    queryKey: ['manga-pictures', mangaData?.data?.mal_id, mangaData?.data?.title, expectedTitle],
+    queryFn: () => fetchMangaPictures(mangaData?.data, expectedTitle),
     enabled: !!mangaData?.data && !!mangaData?.data?.mal_id,
     retry: 1,
   });

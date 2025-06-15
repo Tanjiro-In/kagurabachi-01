@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -58,11 +57,23 @@ const fetchAnimeDetails = async (id: string, expectedTitle?: string) => {
   }
 };
 
-const fetchAnimePictures = async (animeData: any) => {
-  // Only fetch pictures if we have a valid MAL ID and the title matches
+const fetchAnimePictures = async (animeData: any, expectedTitle?: string) => {
+  // Only fetch pictures if we have a valid MAL ID
   if (!animeData?.mal_id) {
     console.log('No MAL ID available for pictures');
     return { data: [] };
+  }
+
+  // If we have an expected title, validate it matches before fetching pictures
+  if (expectedTitle && animeData.title) {
+    const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const expectedNormalized = normalizeTitle(expectedTitle);
+    const actualNormalized = normalizeTitle(animeData.title);
+    
+    if (!actualNormalized.includes(expectedNormalized) && !expectedNormalized.includes(actualNormalized)) {
+      console.log(`Title mismatch for pictures - Expected: ${expectedTitle}, Got: ${animeData.title}. Skipping picture fetch.`);
+      return { data: [] };
+    }
   }
 
   try {
@@ -70,7 +81,7 @@ const fetchAnimePictures = async (animeData: any) => {
     const response = await fetch(`https://api.jikan.moe/v4/anime/${animeData.mal_id}/pictures`);
     if (response.ok) {
       const picturesData = await response.json();
-      console.log('Successfully fetched', picturesData.data?.length || 0, 'pictures');
+      console.log('Successfully fetched', picturesData.data?.length || 0, 'pictures for', animeData.title);
       return picturesData;
     } else {
       console.log('Failed to fetch pictures, status:', response.status);
@@ -98,8 +109,8 @@ const AnimeDetailPage = () => {
   });
 
   const { data: picturesData, isLoading: picturesLoading } = useQuery({
-    queryKey: ['anime-pictures', animeData?.data?.mal_id, animeData?.data?.title],
-    queryFn: () => fetchAnimePictures(animeData?.data),
+    queryKey: ['anime-pictures', animeData?.data?.mal_id, animeData?.data?.title, expectedTitle],
+    queryFn: () => fetchAnimePictures(animeData?.data, expectedTitle),
     enabled: !!animeData?.data && !!animeData?.data?.mal_id,
     retry: 1,
   });
