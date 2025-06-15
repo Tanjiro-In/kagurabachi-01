@@ -2,11 +2,20 @@
 import { getSearchContext, getReturnContext } from './scrollStorage';
 
 export const performAutoScroll = (scrollKey: string) => {
-  if (scrollKey !== '/') return;
+  console.log('=== AUTO-SCROLL DEBUG ===');
+  console.log('Auto-scroll triggered for key:', scrollKey);
+  
+  if (scrollKey !== '/') {
+    console.log('Not home page, skipping auto-scroll');
+    return;
+  }
 
   // Check for search context first
   const searchContext = getSearchContext();
   const returnContext = getReturnContext();
+  
+  console.log('Search context:', searchContext);
+  console.log('Return context:', returnContext);
   
   let contextToUse = null;
   let isSearchContext = false;
@@ -20,36 +29,35 @@ export const performAutoScroll = (scrollKey: string) => {
     isSearchContext = false;
   }
 
-  if (!contextToUse) return;
+  if (!contextToUse) {
+    console.log('No context found for auto-scroll');
+    return;
+  }
 
-  console.log('Performing auto-scroll for', contextToUse.type, isSearchContext ? '(search context)' : '(detail page context)');
+  console.log('Using context for auto-scroll:', contextToUse, isSearchContext ? '(search)' : '(detail page)');
 
   // Find the appropriate section to scroll to
   let targetElement: Element | null = null;
   
   if (contextToUse.type === 'anime') {
-    // For search context, prioritize search results
     if (isSearchContext) {
       targetElement = 
         document.querySelector('[data-section="anime-search"]') ||
         document.querySelector('[data-section="anime-recommendations"]') ||
         document.querySelector('[data-section="trending-anime"]');
     } else {
-      // For detail page returns, prioritize recommendations/trending
       targetElement = 
         document.querySelector('[data-section="anime-recommendations"]') ||
         document.querySelector('[data-section="anime-search"]') ||
         document.querySelector('[data-section="trending-anime"]');
     }
   } else if (contextToUse.type === 'manga') {
-    // For search context, prioritize search results
     if (isSearchContext) {
       targetElement = 
         document.querySelector('[data-section="manga-search"]') ||
         document.querySelector('[data-section="manga-recommendations"]') ||
         document.querySelector('[data-section="trending-manga"]');
     } else {
-      // For detail page returns, prioritize recommendations/trending
       targetElement = 
         document.querySelector('[data-section="manga-recommendations"]') ||
         document.querySelector('[data-section="manga-search"]') ||
@@ -57,15 +65,19 @@ export const performAutoScroll = (scrollKey: string) => {
     }
   }
 
+  console.log('Target element found:', targetElement);
+
   if (targetElement) {
     console.log('Auto-scrolling to', contextToUse.type, 'section');
     
-    // Smooth scroll to the section with a small offset
     const elementTop = targetElement.getBoundingClientRect().top + window.scrollY;
-    const offset = 100; // 100px offset from top
+    const offset = 100;
+    const targetY = Math.max(0, elementTop - offset);
+    
+    console.log('Scrolling to Y position:', targetY);
     
     window.scrollTo({
-      top: Math.max(0, elementTop - offset),
+      top: targetY,
       behavior: 'smooth'
     });
 
@@ -73,8 +85,10 @@ export const performAutoScroll = (scrollKey: string) => {
     setTimeout(() => {
       if (isSearchContext) {
         sessionStorage.removeItem('search-context');
+        console.log('Cleared search context');
       } else {
         sessionStorage.removeItem('return-context');
+        console.log('Cleared return context');
       }
     }, 2000);
   } else {
