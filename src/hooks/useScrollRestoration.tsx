@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -6,6 +5,7 @@ interface ScrollPosition {
   x: number;
   y: number;
   timestamp: number;
+  isAtBottom?: boolean; // Add the missing property
 }
 
 interface SearchContext {
@@ -13,13 +13,12 @@ interface SearchContext {
   query: string;
   timestamp: number;
   scrollAttempts: number;
-  fromDetailScroll?: boolean; // Track if coming from detail page scroll
+  fromDetailScroll?: boolean;
+  lastScrollY?: number;
+  contextPreserved?: boolean;
 }
 
-const SCROLL_RESTORATION_KEY = 'scroll-positions';
-const SEARCH_CONTEXT_KEY = 'search-context';
-const CONTEXT_TIMEOUT = 300000; // 5 minutes (increased)
-const MAX_SCROLL_ATTEMPTS = 5; // Increased attempts
+// ... keep existing code (constants and hook definition)
 
 export const useScrollRestoration = (key?: string) => {
   const location = useLocation();
@@ -29,6 +28,7 @@ export const useScrollRestoration = (key?: string) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const currentContextRef = useRef<string | null>(null);
   const lastNavigationRef = useRef<string | null>(null);
+  const navigationContextRef = useRef<string | null>(null);
 
   // Store search context with enhanced tracking
   const storeSearchContext = useCallback((type: 'anime' | 'manga', query: string) => {
@@ -39,12 +39,14 @@ export const useScrollRestoration = (key?: string) => {
       query,
       timestamp: Date.now(),
       scrollAttempts: 0,
-      fromDetailScroll: false
+      fromDetailScroll: false,
+      lastScrollY: window.scrollY,
+      contextPreserved: true
     };
     
     sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(searchContext));
     currentContextRef.current = `${type}-${query}`;
-    console.log('Stored search context:', searchContext);
+    console.log('Stored enhanced search context:', searchContext);
   }, []);
 
   // Enhanced save scroll position with detail page tracking
@@ -65,16 +67,18 @@ export const useScrollRestoration = (key?: string) => {
       isAtBottom // Track if user was at bottom
     };
     
-    // If user scrolled to bottom of detail page, mark search context
-    if (isAtBottom && (scrollKey.includes('/anime/') || scrollKey.includes('/manga/'))) {
+    // Enhanced context preservation for detail pages
+    if (scrollKey.includes('/anime/') || scrollKey.includes('/manga/')) {
       const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
       if (searchContext) {
         try {
           const ctx: SearchContext = JSON.parse(searchContext);
           ctx.fromDetailScroll = true;
-          ctx.timestamp = Date.now(); // Refresh timestamp
+          ctx.timestamp = Date.now();
+          ctx.lastScrollY = currentY;
+          ctx.contextPreserved = true;
           sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(ctx));
-          console.log('Marked search context for detail scroll:', ctx);
+          console.log('Enhanced context preservation for detail scroll:', ctx);
         } catch (error) {
           console.error('Error updating search context:', error);
         }
@@ -90,7 +94,7 @@ export const useScrollRestoration = (key?: string) => {
     // Wait for content to be fully rendered
     const waitForContent = () => {
       return new Promise<Element | null>((resolve) => {
-        const attemptFind = (attempt = 1, maxAttempts = 10) => {
+        const attemptFind = (attempt = 1, maxAttempts = 15) => {
           const selectors = targetType === 'anime' 
             ? [
                 '[data-section="anime-search"]',
@@ -98,7 +102,9 @@ export const useScrollRestoration = (key?: string) => {
                 '[data-section="trending-anime"]',
                 'section:has(h2:contains("Anime"))',
                 'div[class*="space-y"]:has(*:contains("Anime"))',
-                'section:nth-of-type(2)', // Fallback
+                '[class*="search"]:has(input)',
+                'section:nth-of-type(2)',
+                'main > div:nth-child(2)',
               ]
             : [
                 '[data-section="manga-search"]',
@@ -106,7 +112,9 @@ export const useScrollRestoration = (key?: string) => {
                 '[data-section="trending-manga"]', 
                 'section:has(h2:contains("Manga"))',
                 'div[class*="space-y"]:has(*:contains("Manga"))',
-                'section:nth-of-type(3)', // Fallback
+                '[class*="search"]:has(input)',
+                'section:nth-of-type(3)',
+                'main > div:nth-child(3)',
               ];
 
           for (const selector of selectors) {
@@ -122,25 +130,24 @@ export const useScrollRestoration = (key?: string) => {
             }
           }
           
-          // Text-based fallback search
-          const allSections = document.querySelectorAll('section, div[class*="space-y"], main > div');
+          const allSections = document.querySelectorAll('section, div[class*="space-y"], main > div, [class*="search"]');
           for (const section of allSections) {
             const text = section.textContent?.toLowerCase() || '';
             const hasTargetContent = text.includes(targetType) || 
                                    text.includes('search') || 
                                    text.includes('recommendation');
-            if (hasTargetContent && section.getBoundingClientRect().height > 100) {
-              console.log(`Found target section via text search for: ${targetType}`);
+            if (hasTargetContent && section.getBoundingClientRect().height > 50) {
+              console.log(`Found target section via enhanced text search for: ${targetType}`);
               resolve(section);
               return;
             }
           }
           
           if (attempt < maxAttempts) {
-            console.log(`Section detection attempt ${attempt} failed, retrying...`);
-            setTimeout(() => attemptFind(attempt + 1, maxAttempts), 200 * attempt);
+            console.log(`Enhanced section detection attempt ${attempt} failed, retrying...`);
+            setTimeout(() => attemptFind(attempt + 1, maxAttempts), 150 * attempt);
           } else {
-            console.log('Failed to find target section after all attempts');
+            console.log('Failed to find target section after all enhanced attempts');
             resolve(null);
           }
         };
@@ -156,12 +163,20 @@ export const useScrollRestoration = (key?: string) => {
   const performContextAwareScroll = useCallback(async (forceAttempt = false) => {
     if (scrollKey !== '/') return false;
 
-    console.log('=== CONTEXT-AWARE SCROLL DEBUG ===');
+    console.log('=== ENHANCED CONTEXT-AWARE SCROLL DEBUG ===');
     
-    // Reset restoration flags for new attempts
-    if (forceAttempt) {
+    const currentNavigationContext = `${location.pathname}-${Date.now()}`;
+    
+    if (!forceAttempt && navigationContextRef.current === currentNavigationContext && hasRestoredRef.current) {
+      console.log('Already handled this navigation context');
+      return false;
+    }
+    
+    if (forceAttempt || navigationContextRef.current !== currentNavigationContext) {
       hasRestoredRef.current = false;
       isRestoringRef.current = false;
+      navigationContextRef.current = currentNavigationContext;
+      console.log('Reset state for new navigation context');
     }
 
     const navigationState = location.state;
@@ -172,10 +187,11 @@ export const useScrollRestoration = (key?: string) => {
     let contextSource = null;
     let shouldScroll = false;
 
-    console.log('Navigation analysis:', {
+    console.log('Enhanced navigation analysis:', {
       isFromDetailPage,
       navigationSection,
-      navigationState
+      navigationState,
+      currentNavigationContext
     });
 
     // Primary: Check navigation state
@@ -209,21 +225,24 @@ export const useScrollRestoration = (key?: string) => {
           const searchCtx: SearchContext = JSON.parse(searchContext);
           const isContextValid = Date.now() - searchCtx.timestamp < CONTEXT_TIMEOUT;
           const hasAttemptsLeft = searchCtx.scrollAttempts < MAX_SCROLL_ATTEMPTS;
+          const isContextPreserved = searchCtx.contextPreserved;
           
-          console.log('Search context analysis:', {
+          console.log('Enhanced search context analysis:', {
             isContextValid,
             hasAttemptsLeft,
+            isContextPreserved,
             scrollAttempts: searchCtx.scrollAttempts,
             fromDetailScroll: searchCtx.fromDetailScroll
           });
           
-          if (isContextValid && (hasAttemptsLeft || forceAttempt)) {
+          if (isContextValid && (hasAttemptsLeft || forceAttempt || isContextPreserved)) {
             targetType = searchCtx.type;
             contextSource = searchCtx.fromDetailScroll ? 'detail-scroll-context' : 'search-context';
             shouldScroll = true;
             
             // Update attempt count
             searchCtx.scrollAttempts += 1;
+            searchCtx.contextPreserved = false;
             sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(searchCtx));
           }
         } catch (error) {
@@ -238,10 +257,12 @@ export const useScrollRestoration = (key?: string) => {
       return false;
     }
 
-    console.log(`Performing context-aware scroll for ${targetType} (${contextSource})`);
+    console.log(`Performing enhanced context-aware scroll for ${targetType} (${contextSource})`);
 
     try {
       isRestoringRef.current = true;
+      
+      await new Promise(resolve => setTimeout(resolve, 400));
       
       // Find target section with enhanced detection
       const targetElement = await findTargetSection(targetType);
@@ -269,7 +290,7 @@ export const useScrollRestoration = (key?: string) => {
           if (searchContext && contextSource.includes('context')) {
             try {
               const searchCtx: SearchContext = JSON.parse(searchContext);
-              if (searchCtx.scrollAttempts >= MAX_SCROLL_ATTEMPTS) {
+              if (searchCtx.scrollAttempts >= MAX_SCROLL_ATTEMPTS && !searchCtx.contextPreserved) {
                 sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
                 console.log('Cleared search context after max attempts');
               }
@@ -278,14 +299,27 @@ export const useScrollRestoration = (key?: string) => {
             }
           }
           isRestoringRef.current = false;
-        }, 3000);
+        }, 2000);
 
         return true;
       } else {
-        console.log('Target section not found, using fallback scroll');
+        console.log('Target section not found, using enhanced fallback scroll');
         
         // Enhanced fallback: scroll to a reasonable position
-        const fallbackPosition = targetType === 'anime' ? window.innerHeight * 0.6 : window.innerHeight * 0.8;
+        const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
+        let fallbackPosition = window.innerHeight * 0.7;
+        
+        if (searchContext) {
+          try {
+            const searchCtx: SearchContext = JSON.parse(searchContext);
+            if (searchCtx.lastScrollY && searchCtx.lastScrollY > 100) {
+              fallbackPosition = Math.min(searchCtx.lastScrollY, window.innerHeight * 1.2);
+            }
+          } catch (error) {
+            // Use default fallback
+          }
+        }
+        
         window.scrollTo({
           top: fallbackPosition,
           behavior: 'smooth'
@@ -296,29 +330,27 @@ export const useScrollRestoration = (key?: string) => {
         return true;
       }
     } catch (error) {
-      console.error('Error in context-aware scroll:', error);
+      console.error('Error in enhanced context-aware scroll:', error);
       isRestoringRef.current = false;
       return false;
     }
-  }, [scrollKey, location.state, findTargetSection]);
+  }, [scrollKey, location.state, findTargetSection, location.pathname]);
 
   // Enhanced restore scroll position with better state management
   const restoreScrollPosition = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
-    // Create navigation context identifier
     const navigationContext = `${location.pathname}-${location.state?.fromDetailPage}-${location.state?.type}-${Date.now()}`;
     
-    // Reset state for new navigation context
     if (lastNavigationRef.current !== navigationContext) {
-      console.log('New navigation context detected, resetting state');
+      console.log('New enhanced navigation context detected, resetting state');
       hasRestoredRef.current = false;
       isRestoringRef.current = false;
       lastNavigationRef.current = navigationContext;
     }
 
     if (hasRestoredRef.current || isRestoringRef.current) {
-      console.log('Scroll restoration already completed or in progress');
+      console.log('Enhanced scroll restoration already completed or in progress');
       return;
     }
 
@@ -329,29 +361,26 @@ export const useScrollRestoration = (key?: string) => {
     const savedPosition: ScrollPosition = scrollPositions[scrollKey];
     
     console.log('=== ENHANCED SCROLL RESTORATION DEBUG ===');
-    console.log('Navigation context:', navigationContext);
+    console.log('Enhanced navigation context:', navigationContext);
     console.log('Saved position:', savedPosition);
     console.log('Navigation state:', location.state);
     
-    // Priority 1: Handle detail page navigation with context-aware scroll
     if (location.state?.fromDetailPage && location.state?.preserveState) {
-      console.log('Coming from detail page - using context-aware scroll');
+      console.log('Coming from detail page - using enhanced context-aware scroll');
       const scrolled = await performContextAwareScroll();
       if (scrolled) {
-        console.log('Context-aware scroll successful');
+        console.log('Enhanced context-aware scroll successful');
         return;
       }
     }
     
-    // Priority 2: Use saved position if meaningful and not from bottom of detail page
     if (savedPosition && savedPosition.y > 100 && !savedPosition.isAtBottom) {
       console.log('Using saved scroll position:', savedPosition);
       
       isRestoringRef.current = true;
       hasRestoredRef.current = true;
       
-      // Wait for content to render
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 350));
       
       window.scrollTo({
         left: savedPosition.x,
@@ -359,13 +388,12 @@ export const useScrollRestoration = (key?: string) => {
         behavior: 'auto'
       });
       
-      // Verify restoration
       setTimeout(() => {
         const actualY = window.scrollY;
         const tolerance = 150;
         
         if (Math.abs(actualY - savedPosition.y) > tolerance) {
-          console.log('Scroll verification failed, retrying...');
+          console.log('Enhanced scroll verification failed, retrying...');
           window.scrollTo({
             left: savedPosition.x,
             top: savedPosition.y,
@@ -376,8 +404,7 @@ export const useScrollRestoration = (key?: string) => {
         isRestoringRef.current = false;
       }, 500);
     } else {
-      // Priority 3: Fallback to context-aware scroll
-      console.log('No meaningful saved position, trying context-aware scroll');
+      console.log('No meaningful saved position, trying enhanced context-aware scroll');
       await performContextAwareScroll(true);
     }
   }, [scrollKey, performContextAwareScroll, location.state, location.pathname]);
@@ -401,20 +428,18 @@ export const useScrollRestoration = (key?: string) => {
       saveScrollPosition();
     };
 
-    // Enhanced popstate handling for browser navigation
     const handlePopState = () => {
-      console.log('Browser back/forward navigation detected');
+      console.log('Enhanced browser back/forward navigation detected');
       
-      // Reset state to allow new scroll restoration
       hasRestoredRef.current = false;
       isRestoringRef.current = false;
       lastNavigationRef.current = null;
+      navigationContextRef.current = null;
       
-      // Delay scroll restoration to allow page to settle
       setTimeout(async () => {
-        console.log('Attempting popstate scroll restoration');
+        console.log('Attempting enhanced popstate scroll restoration');
         await performContextAwareScroll(true);
-      }, 600);
+      }, 500);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -436,7 +461,7 @@ export const useScrollRestoration = (key?: string) => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       restoreScrollPosition();
-    }, 150);
+    }, 200);
 
     return () => clearTimeout(timeoutId);
   }, [restoreScrollPosition]);
@@ -455,8 +480,9 @@ export const useScrollRestoration = (key?: string) => {
     isRestoringRef.current = false;
     currentContextRef.current = null;
     lastNavigationRef.current = null;
+    navigationContextRef.current = null;
     
-    console.log('Cleared scroll position for:', keyToClear || scrollKey);
+    console.log('Cleared enhanced scroll position for:', keyToClear || scrollKey);
   }, [scrollKey]);
 
   return { clearScrollPosition, storeSearchContext };
