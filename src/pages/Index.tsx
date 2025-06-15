@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import HeroSection from '../components/HeroSection';
@@ -5,7 +6,6 @@ import AIRecommendations from '../components/AIRecommendations';
 import RecommendationSections from '../components/RecommendationSections';
 import SearchResultsSection from '../components/SearchResultsSection';
 import TrendingContentSection from '../components/TrendingContentSection';
-import WallpaperGallery from '../components/WallpaperGallery';
 import { usePageState } from '../hooks/usePageState';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { 
