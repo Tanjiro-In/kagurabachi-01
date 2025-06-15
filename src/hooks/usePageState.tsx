@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -104,7 +103,9 @@ export const usePageState = () => {
       
       // Only reset on actual page refresh (not navigation)
       // Check if this is a genuine page refresh by looking at performance navigation timing
-      const isPageRefresh = window.performance?.getEntriesByType?.('navigation')?.[0]?.type === 'reload';
+      const navigationEntries = window.performance?.getEntriesByType?.('navigation');
+      const isPageRefresh = navigationEntries && navigationEntries.length > 0 && 
+        (navigationEntries[0] as PerformanceNavigationTiming).type === 'reload';
       
       if (isPageRefresh) {
         console.log('Page refresh detected - clearing state');
