@@ -39,6 +39,7 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
 
   const handleCardClick = () => {
     const id = anime.mal_id;
+    const title = anime.title;
     
     // Enhanced detection logic for manga vs anime
     const isManga = 
@@ -64,11 +65,12 @@ const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
       (anime.episodes === undefined && anime.chapters);
     
     console.log(`Content ${id} - Type: ${anime.type}, Episodes: ${anime.episodes}, Chapters: ${anime.chapters}, Volumes: ${anime.volumes}, isManga: ${isManga}`);
+    console.log(`Navigating to ${isManga ? 'manga' : 'anime'} with title: ${title}`);
     
     if (isManga) {
-      navigate(`/manga/${id}`);
+      navigate(`/manga/${id}`, { state: { title, expectedTitle: title } });
     } else {
-      navigate(`/anime/${id}`);
+      navigate(`/anime/${id}`, { state: { title, expectedTitle: title } });
     }
   };
 

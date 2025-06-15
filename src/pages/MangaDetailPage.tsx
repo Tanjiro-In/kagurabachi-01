@@ -1,18 +1,18 @@
 import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ImageGallery from '../components/ImageGallery';
 import DetailedInfo from '../components/DetailedInfo';
-import { fetchMangaDetailAniList } from '../services/anilistApi';
+import { fetchMangaDetailAniList } from '../services/details';
 import { convertAniListMangaDetailToJikan } from '../utils/detailConverter';
 
-const fetchMangaDetails = async (id: string) => {
+const fetchMangaDetails = async (id: string, expectedTitle?: string) => {
   try {
-    // First try AniList (primary source)
-    console.log('Fetching manga details from AniList for ID:', id);
-    const anilistData = await fetchMangaDetailAniList(id);
+    // First try AniList (primary source) with title validation
+    console.log('Fetching manga details from AniList for ID:', id, 'Expected title:', expectedTitle);
+    const anilistData = await fetchMangaDetailAniList(id, expectedTitle);
     return { data: convertAniListMangaDetailToJikan(anilistData), source: 'anilist' };
   } catch (anilistError) {
     console.log('AniList failed, trying Jikan API:', anilistError);
@@ -22,6 +22,13 @@ const fetchMangaDetails = async (id: string) => {
       const response = await fetch(`https://api.jikan.moe/v4/manga/${id}/full`);
       if (response.ok) {
         const jikanData = await response.json();
+        
+        // Validate title if provided
+        if (expectedTitle && jikanData.data?.title) {
+          const fetchedTitle = jikanData.data.title;
+          console.log('Jikan API title validation - Expected:', expectedTitle, 'Got:', fetchedTitle);
+        }
+        
         return { data: jikanData.data, source: 'jikan' };
       }
     } catch (jikanError) {
@@ -66,10 +73,14 @@ const fetchMangaPictures = async (id: string) => {
 const MangaDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Extract expected title from navigation state if available
+  const expectedTitle = location.state?.title || location.state?.expectedTitle;
 
   const { data: mangaData, isLoading: mangaLoading, error: mangaError } = useQuery({
-    queryKey: ['manga-details', id],
-    queryFn: () => fetchMangaDetails(id!),
+    queryKey: ['manga-details', id, expectedTitle],
+    queryFn: () => fetchMangaDetails(id!, expectedTitle),
     enabled: !!id,
     retry: 2,
   });
@@ -109,6 +120,11 @@ const MangaDetailPage = () => {
           <p className="text-sm md:text-base text-muted-foreground">
             This manga might not be available in our database or the ID might be incorrect.
           </p>
+          {expectedTitle && (
+            <p className="text-sm text-muted-foreground">
+              Expected: {expectedTitle}
+            </p>
+          )}
           <button 
             onClick={handleBackToHome}
             className="bg-primary text-primary-foreground px-4 md:px-6 py-2 md:py-3 rounded-lg hover:bg-primary/90 transition-colors text-sm md:text-base"
@@ -124,6 +140,7 @@ const MangaDetailPage = () => {
   const pictures = picturesData?.data || [];
 
   console.log('Manga data source:', mangaData.source);
+  console.log('Final manga title:', manga.title);
 
   return (
     <div className="min-h-screen bg-background">
