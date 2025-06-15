@@ -298,11 +298,6 @@ const Index = () => {
           mangaSearchResults={pageState.mangaSearchResults}
         />
 
-        {/* Wallpaper Gallery - show when no active search or recommendations */}
-        {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
-          <WallpaperGallery />
-        )}
-
         {/* Trending Content - only show if not searching or getting recommendations */}
         {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
           <TrendingContentSection
