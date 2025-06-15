@@ -293,48 +293,56 @@ const Index = () => {
 
       <div className="max-w-7xl mx-auto px-4 space-y-12 md:space-y-16 pb-16 md:pb-20">
         {/* AI Recommendations */}
-        <AIRecommendations 
-          animeGenres={mockGenres} 
-          mangaGenres={mockGenres} 
-          onRecommendationRequest={handleRecommendationRequest} 
-          isLoading={false} 
-        />
+        <div data-section="ai-recommendations">
+          <AIRecommendations 
+            animeGenres={mockGenres} 
+            mangaGenres={mockGenres} 
+            onRecommendationRequest={handleRecommendationRequest} 
+            isLoading={false} 
+          />
+        </div>
 
         {/* AI Recommendation Results */}
         {pageState.hasRecommendations && (
-          <RecommendationSections
-            animeRecommendations={pageState.animeRecommendations}
-            mangaRecommendations={pageState.mangaRecommendations}
-            isLoading={isLoadingRecommendations}
-            onLoadMoreAnime={handleLoadMoreAnime}
-            onLoadMoreManga={handleLoadMoreManga}
-            hasMoreAnime={pageState.hasMoreAnime}
-            hasMoreManga={pageState.hasMoreManga}
-            isLoadingMoreAnime={isLoadingMoreAnime}
-            isLoadingMoreManga={isLoadingMoreManga}
-          />
+          <div data-section="recommendation-results">
+            <RecommendationSections
+              animeRecommendations={pageState.animeRecommendations}
+              mangaRecommendations={pageState.mangaRecommendations}
+              isLoading={isLoadingRecommendations}
+              onLoadMoreAnime={handleLoadMoreAnime}
+              onLoadMoreManga={handleLoadMoreManga}
+              hasMoreAnime={pageState.hasMoreAnime}
+              hasMoreManga={pageState.hasMoreManga}
+              isLoadingMoreAnime={isLoadingMoreAnime}
+              isLoadingMoreManga={isLoadingMoreManga}
+            />
+          </div>
         )}
 
         {/* Search Results */}
-        <SearchResultsSection
-          isSearchingAnime={pageState.isSearchingAnime}
-          isSearchingManga={pageState.isSearchingManga}
-          animeSearchQuery={pageState.animeSearchQuery}
-          mangaSearchQuery={pageState.mangaSearchQuery}
-          animeSearchResults={pageState.animeSearchResults}
-          mangaSearchResults={pageState.mangaSearchResults}
-          onResetAnimeSearch={handleResetAnimeSearch}
-          onResetMangaSearch={handleResetMangaSearch}
-        />
+        <div data-section="search-results">
+          <SearchResultsSection
+            isSearchingAnime={pageState.isSearchingAnime}
+            isSearchingManga={pageState.isSearchingManga}
+            animeSearchQuery={pageState.animeSearchQuery}
+            mangaSearchQuery={pageState.mangaSearchQuery}
+            animeSearchResults={pageState.animeSearchResults}
+            mangaSearchResults={pageState.mangaSearchResults}
+            onResetAnimeSearch={handleResetAnimeSearch}
+            onResetMangaSearch={handleResetMangaSearch}
+          />
+        </div>
 
         {/* Trending Content - only show if not searching or getting recommendations */}
         {!pageState.isSearchingAnime && !pageState.isSearchingManga && !pageState.hasRecommendations && (
-          <TrendingContentSection
-            trendingAnimeData={trendingAnimeData}
-            trendingMangaData={trendingMangaData}
-            trendingAnimeLoading={trendingAnimeLoading}
-            trendingMangaLoading={trendingMangaLoading}
-          />
+          <div data-section="trending-content">
+            <TrendingContentSection
+              trendingAnimeData={trendingAnimeData}
+              trendingMangaData={trendingMangaData}
+              trendingAnimeLoading={trendingAnimeLoading}
+              trendingMangaLoading={trendingMangaLoading}
+            />
+          </div>
         )}
       </div>
     </div>

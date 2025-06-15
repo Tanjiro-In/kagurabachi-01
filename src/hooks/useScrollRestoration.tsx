@@ -2,14 +2,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 
-// Constants for scroll restoration with mobile optimizations
+// Simplified constants for better mobile performance
 const SCROLL_RESTORATION_KEY = 'scroll_positions';
 const SEARCH_CONTEXT_KEY = 'search_context';
 const MOBILE_CONTEXT_TIMEOUT = 45 * 60 * 1000; // 45 minutes for mobile
 const DESKTOP_CONTEXT_TIMEOUT = 30 * 60 * 1000; // 30 minutes for desktop
-const MAX_SCROLL_ATTEMPTS = 5; // Increased for mobile
-const MOBILE_DELAY = 500; // Longer delay for mobile content loading
-const DESKTOP_DELAY = 200;
+const MAX_SCROLL_ATTEMPTS = 3; // Reduced for better performance
+const MOBILE_DELAY = 600; // Increased for mobile content loading
+const DESKTOP_DELAY = 300;
 
 interface ScrollPosition {
   x: number;
@@ -29,35 +29,30 @@ interface SearchContext {
   contextPreserved?: boolean;
   isMobile?: boolean;
   navigationMethod?: 'browser-back' | 'touch-gesture' | 'link-click' | 'unknown';
+  targetSection?: string; // Added for direct section targeting
 }
 
-// Mobile device detection utility
+// Simplified mobile device detection
 const isMobileDevice = () => {
   if (typeof window === 'undefined') return false;
   
   const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  const isSmallScreen = window.innerWidth <= 768;
+  const isSmallScreen = window.innerWidth <= 1024; // Increased threshold for tablets
   
   return isMobile || (isTouchDevice && isSmallScreen);
 };
 
-// Get appropriate timeout based on device
-const getContextTimeout = () => {
-  return isMobileDevice() ? MOBILE_CONTEXT_TIMEOUT : DESKTOP_CONTEXT_TIMEOUT;
-};
+// Get appropriate timeout and delay based on device
+const getContextTimeout = () => isMobileDevice() ? MOBILE_CONTEXT_TIMEOUT : DESKTOP_CONTEXT_TIMEOUT;
+const getScrollDelay = () => isMobileDevice() ? MOBILE_DELAY : DESKTOP_DELAY;
 
-// Get appropriate delay based on device
-const getScrollDelay = () => {
-  return isMobileDevice() ? MOBILE_DELAY : DESKTOP_DELAY;
-};
-
-// Enhanced mobile navigation detection
+// Enhanced navigation method detection for mobile
 const detectNavigationMethod = () => {
   if (typeof window === 'undefined') return 'unknown';
   
-  // Check for mobile browser back button or gesture
+  // Check for browser back/forward navigation
   const navigationEntries = window.performance?.getEntriesByType?.('navigation');
   if (navigationEntries && navigationEntries.length > 0) {
     const entry = navigationEntries[0] as PerformanceNavigationTiming;
@@ -66,7 +61,7 @@ const detectNavigationMethod = () => {
     }
   }
   
-  // Check for mobile touch events in recent history
+  // Check for mobile gesture navigation
   if (isMobileDevice() && window.history.length > 1) {
     return 'touch-gesture';
   }
@@ -80,17 +75,9 @@ export const useScrollRestoration = (key?: string) => {
   const isRestoringRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
-  const currentContextRef = useRef<string | null>(null);
-  const lastNavigationRef = useRef<string | null>(null);
   const navigationContextRef = useRef<string | null>(null);
-  const mobileDetectionRef = useRef<boolean>(false);
 
-  // Initialize mobile detection
-  useEffect(() => {
-    mobileDetectionRef.current = isMobileDevice();
-  }, []);
-
-  // Store search context with mobile enhancements
+  // Store search context with enhanced mobile support
   const storeSearchContext = useCallback((type: 'anime' | 'manga', query: string) => {
     if (typeof window === 'undefined') return;
     
@@ -104,15 +91,15 @@ export const useScrollRestoration = (key?: string) => {
       lastScrollY: window.scrollY,
       contextPreserved: true,
       isMobile: isMobileDevice(),
-      navigationMethod
+      navigationMethod,
+      targetSection: `${type}-search` // Direct section targeting
     };
     
     sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(searchContext));
-    currentContextRef.current = `${type}-${query}`;
-    console.log('Stored mobile-enhanced search context:', searchContext);
+    console.log('Stored enhanced search context:', searchContext);
   }, []);
 
-  // Enhanced save scroll position with mobile tracking
+  // Enhanced save scroll position
   const saveScrollPosition = useCallback(() => {
     if (typeof window === 'undefined' || isRestoringRef.current) return;
     
@@ -131,7 +118,7 @@ export const useScrollRestoration = (key?: string) => {
       isMobile: isMobileDevice()
     };
     
-    // Enhanced context preservation for mobile detail pages
+    // Enhanced context preservation for detail pages
     if (scrollKey.includes('/anime/') || scrollKey.includes('/manga/')) {
       const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
       if (searchContext) {
@@ -143,56 +130,45 @@ export const useScrollRestoration = (key?: string) => {
           ctx.contextPreserved = true;
           ctx.isMobile = isMobileDevice();
           ctx.navigationMethod = detectNavigationMethod();
+          // Preserve the original target section
+          if (!ctx.targetSection) {
+            ctx.targetSection = ctx.type === 'anime' ? 'anime-search' : 'manga-search';
+          }
           sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(ctx));
-          console.log('Mobile-enhanced context preservation for detail scroll:', ctx);
+          console.log('Enhanced context preservation for detail scroll:', ctx);
         } catch (error) {
-          console.error('Error updating mobile search context:', error);
+          console.error('Error updating search context:', error);
         }
       }
     }
     
     sessionStorage.setItem(SCROLL_RESTORATION_KEY, JSON.stringify(scrollPositions));
-    console.log('Saved mobile scroll position for', scrollKey, scrollPositions[scrollKey]);
+    console.log('Saved scroll position for', scrollKey, scrollPositions[scrollKey]);
   }, [scrollKey]);
 
-  // Enhanced mobile-friendly section detection
-  const findTargetSection = useCallback((targetType: 'anime' | 'manga') => {
+  // Simplified and reliable section detection
+  const findTargetSection = useCallback((targetType: 'anime' | 'manga', targetSection?: string) => {
     return new Promise<Element | null>((resolve) => {
-      const attemptFind = (attempt = 1, maxAttempts = isMobileDevice() ? 20 : 15) => {
-        // Mobile-optimized selectors with viewport considerations
-        const mobileSelectors = targetType === 'anime' 
-          ? [
-              '[data-section="anime-search"]',
-              '[data-section="anime-recommendations"]', 
-              '[data-section="trending-anime"]',
-              'section:has(h2[class*="gradient-text"]):has(*:contains("Anime"))',
-              'div[class*="space-y"]:has(h2:contains("Anime"))',
-              'section:has(input[placeholder*="anime" i])',
-              '[class*="search"]:has(input)',
-              'main section:nth-of-type(2)',
-              'main > div:nth-child(2)',
-              'section:contains("Anime")',
-              '.grid:has([class*="card"])',
-            ]
-          : [
-              '[data-section="manga-search"]',
-              '[data-section="manga-recommendations"]',
-              '[data-section="trending-manga"]', 
-              'section:has(h2[class*="gradient-text"]):has(*:contains("Manga"))',
-              'div[class*="space-y"]:has(h2:contains("Manga"))',
-              'section:has(input[placeholder*="manga" i])',
-              '[class*="search"]:has(input)',
-              'main section:nth-of-type(3)',
-              'main > div:nth-child(3)',
-              'section:contains("Manga")',
-              '.grid:has([class*="card"])',
-            ];
-
-        for (const selector of mobileSelectors) {
+      const attemptFind = (attempt = 1, maxAttempts = 10) => {
+        console.log(`Attempting to find ${targetType} section (attempt ${attempt})`);
+        
+        // Primary: Use data-section attributes for reliable detection
+        const primarySelectors = [
+          `[data-section="${targetType}-search"]`,
+          `[data-section="${targetType}-recommendations"]`,
+          `[data-section="trending-${targetType}"]`
+        ];
+        
+        // If we have a specific target section, prioritize it
+        if (targetSection) {
+          primarySelectors.unshift(`[data-section="${targetSection}"]`);
+        }
+        
+        for (const selector of primarySelectors) {
           try {
             const element = document.querySelector(selector);
-            if (element && element.getBoundingClientRect().height > 0) {
-              console.log(`Mobile: Found target section using selector: ${selector}`);
+            if (element && element.getBoundingClientRect().height > 50) {
+              console.log(`Found target section using: ${selector}`);
               resolve(element);
               return;
             }
@@ -201,30 +177,45 @@ export const useScrollRestoration = (key?: string) => {
           }
         }
         
-        // Enhanced mobile fallback detection
-        const allSections = document.querySelectorAll('section, div[class*="space-y"], main > div, [class*="search"], .grid');
+        // Secondary: Fallback to content-based detection
+        const fallbackSelectors = [
+          `section:has(h2:contains("${targetType.charAt(0).toUpperCase() + targetType.slice(1)}"))`
+        ];
+        
+        for (const selector of fallbackSelectors) {
+          try {
+            const element = document.querySelector(selector);
+            if (element && element.getBoundingClientRect().height > 50) {
+              console.log(`Found target section using fallback: ${selector}`);
+              resolve(element);
+              return;
+            }
+          } catch (error) {
+            continue;
+          }
+        }
+        
+        // Tertiary: Manual text search as last resort
+        const allSections = document.querySelectorAll('section, div[class*="space-y"], main > div');
         for (const section of allSections) {
           const text = section.textContent?.toLowerCase() || '';
-          const hasTargetContent = text.includes(targetType) || 
-                                 text.includes('search') || 
-                                 text.includes('recommendation') ||
-                                 text.includes('trending');
+          const hasTargetContent = text.includes(targetType);
           const rect = section.getBoundingClientRect();
-          const isVisible = rect.height > (isMobileDevice() ? 30 : 50) && rect.width > 0;
+          const isVisible = rect.height > 100 && rect.width > 0;
           
           if (hasTargetContent && isVisible) {
-            console.log(`Mobile: Found target section via enhanced text search for: ${targetType}`);
+            console.log(`Found target section via text search for: ${targetType}`);
             resolve(section);
             return;
           }
         }
         
         if (attempt < maxAttempts) {
-          const delay = isMobileDevice() ? 200 * attempt : 150 * attempt;
-          console.log(`Mobile section detection attempt ${attempt} failed, retrying in ${delay}ms...`);
+          const delay = isMobileDevice() ? 300 * attempt : 200 * attempt;
+          console.log(`Section detection attempt ${attempt} failed, retrying in ${delay}ms...`);
           setTimeout(() => attemptFind(attempt + 1, maxAttempts), delay);
         } else {
-          console.log('Mobile: Failed to find target section after all enhanced attempts');
+          console.log('Failed to find target section after all attempts');
           resolve(null);
         }
       };
@@ -233,17 +224,17 @@ export const useScrollRestoration = (key?: string) => {
     });
   }, []);
 
-  // Enhanced mobile context-aware scroll with better state management
+  // Enhanced context-aware scroll with proper section targeting
   const performContextAwareScroll = useCallback(async (forceAttempt = false) => {
     if (scrollKey !== '/') return false;
 
-    console.log('=== MOBILE-ENHANCED CONTEXT-AWARE SCROLL DEBUG ===');
+    console.log('=== ENHANCED CONTEXT-AWARE SCROLL DEBUG ===');
     console.log('Mobile device detected:', isMobileDevice());
     
     const currentNavigationContext = `${location.pathname}-${Date.now()}`;
     
     if (!forceAttempt && navigationContextRef.current === currentNavigationContext && hasRestoredRef.current) {
-      console.log('Already handled this mobile navigation context');
+      console.log('Already handled this navigation context');
       return false;
     }
     
@@ -251,48 +242,34 @@ export const useScrollRestoration = (key?: string) => {
       hasRestoredRef.current = false;
       isRestoringRef.current = false;
       navigationContextRef.current = currentNavigationContext;
-      console.log('Reset mobile state for new navigation context');
+      console.log('Reset state for new navigation context');
     }
 
     const navigationState = location.state;
     const isFromDetailPage = navigationState?.fromDetailPage;
-    const navigationSection = navigationState?.lastActiveSection;
     const navigationMethod = detectNavigationMethod();
     
     let targetType = null;
+    let targetSection = null;
     let contextSource = null;
     let shouldScroll = false;
 
-    console.log('Mobile navigation analysis:', {
+    console.log('Navigation analysis:', {
       isFromDetailPage,
-      navigationSection,
       navigationState,
-      navigationMethod,
-      currentNavigationContext
+      navigationMethod
     });
 
-    // Primary: Enhanced mobile navigation state detection
-    if (isFromDetailPage || navigationMethod === 'touch-gesture' || navigationMethod === 'browser-back') {
+    // Primary: Check navigation state for direct type info
+    if (isFromDetailPage && navigationState?.type) {
+      targetType = navigationState.type;
+      targetSection = `${targetType}-search`;
       shouldScroll = true;
-      contextSource = `mobile-navigation-${navigationMethod}`;
-      
-      if (navigationState?.type) {
-        targetType = navigationState.type;
-      } else if (navigationSection === 'search') {
-        const pageState = sessionStorage.getItem('pageState');
-        if (pageState) {
-          try {
-            const parsed = JSON.parse(pageState);
-            if (parsed.isSearchingAnime) targetType = 'anime';
-            else if (parsed.isSearchingManga) targetType = 'manga';
-          } catch (error) {
-            console.error('Error parsing mobile page state:', error);
-          }
-        }
-      }
+      contextSource = 'navigation-state';
+      console.log('Using navigation state:', { targetType, targetSection });
     }
 
-    // Secondary: Enhanced mobile search context detection
+    // Secondary: Check search context
     if (!targetType || forceAttempt) {
       const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
       if (searchContext) {
@@ -301,105 +278,101 @@ export const useScrollRestoration = (key?: string) => {
           const contextTimeout = getContextTimeout();
           const isContextValid = Date.now() - searchCtx.timestamp < contextTimeout;
           const hasAttemptsLeft = searchCtx.scrollAttempts < MAX_SCROLL_ATTEMPTS;
-          const isContextPreserved = searchCtx.contextPreserved;
-          const isMobileContext = searchCtx.isMobile !== undefined ? searchCtx.isMobile : isMobileDevice();
           
-          console.log('Mobile search context analysis:', {
+          console.log('Search context analysis:', {
             isContextValid,
             hasAttemptsLeft,
-            isContextPreserved,
-            isMobileContext,
             scrollAttempts: searchCtx.scrollAttempts,
-            fromDetailScroll: searchCtx.fromDetailScroll,
-            navigationMethod: searchCtx.navigationMethod
+            targetSection: searchCtx.targetSection,
+            fromDetailScroll: searchCtx.fromDetailScroll
           });
           
-          if (isContextValid && (hasAttemptsLeft || forceAttempt || isContextPreserved)) {
+          if (isContextValid && (hasAttemptsLeft || forceAttempt)) {
             targetType = searchCtx.type;
-            contextSource = searchCtx.fromDetailScroll ? 'mobile-detail-scroll-context' : 'mobile-search-context';
+            targetSection = searchCtx.targetSection || `${targetType}-search`;
+            contextSource = searchCtx.fromDetailScroll ? 'detail-scroll-context' : 'search-context';
             shouldScroll = true;
             
-            // Update attempt count with mobile considerations
+            // Update attempt count
             searchCtx.scrollAttempts += 1;
-            searchCtx.contextPreserved = false;
-            searchCtx.isMobile = isMobileDevice();
             searchCtx.navigationMethod = navigationMethod;
             sessionStorage.setItem(SEARCH_CONTEXT_KEY, JSON.stringify(searchCtx));
           }
         } catch (error) {
-          console.error('Error parsing mobile search context:', error);
+          console.error('Error parsing search context:', error);
           sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
         }
       }
     }
 
     if (!shouldScroll || !targetType) {
-      console.log('No valid mobile context found for auto-scroll');
+      console.log('No valid context found for auto-scroll');
       return false;
     }
 
-    console.log(`Performing mobile context-aware scroll for ${targetType} (${contextSource})`);
+    console.log(`Performing context-aware scroll for ${targetType} (${contextSource})`);
 
     try {
       isRestoringRef.current = true;
       
-      // Mobile-optimized delay
+      // Optimized delay for mobile
       const scrollDelay = getScrollDelay();
       await new Promise(resolve => setTimeout(resolve, scrollDelay));
       
-      // Find target section with mobile-enhanced detection
-      const targetElement = await findTargetSection(targetType);
+      // Find target section with enhanced detection
+      const targetElement = await findTargetSection(targetType, targetSection);
 
       if (targetElement) {
-        console.log(`Mobile: Found target section for ${targetType}, scrolling...`);
+        console.log(`Found target section for ${targetType}, scrolling...`);
         
         const elementRect = targetElement.getBoundingClientRect();
         const elementTop = elementRect.top + window.scrollY;
-        const mobileOffset = isMobileDevice() ? 60 : 80; // Smaller offset for mobile
-        const targetScrollY = Math.max(0, elementTop - mobileOffset);
+        const offset = isMobileDevice() ? 80 : 100; // Adjusted for mobile
+        const targetScrollY = Math.max(0, elementTop - offset);
         
-        // Mobile-optimized smooth scroll
+        // Mobile-optimized scroll behavior
         window.scrollTo({
           top: targetScrollY,
-          behavior: isMobileDevice() ? 'auto' : 'smooth' // Auto for better mobile performance
+          behavior: isMobileDevice() ? 'auto' : 'smooth'
         });
 
         hasRestoredRef.current = true;
         
-        // Mobile-optimized context cleanup
+        // Cleanup after successful scroll
         setTimeout(() => {
+          isRestoringRef.current = false;
+          // Clean up context if max attempts reached
           const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
           if (searchContext && contextSource.includes('context')) {
             try {
               const searchCtx: SearchContext = JSON.parse(searchContext);
-              if (searchCtx.scrollAttempts >= MAX_SCROLL_ATTEMPTS && !searchCtx.contextPreserved) {
+              if (searchCtx.scrollAttempts >= MAX_SCROLL_ATTEMPTS) {
                 sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
-                console.log('Cleared mobile search context after max attempts');
+                console.log('Cleared search context after max attempts');
               }
             } catch (error) {
               sessionStorage.removeItem(SEARCH_CONTEXT_KEY);
             }
           }
-          isRestoringRef.current = false;
-        }, isMobileDevice() ? 3000 : 2000);
+        }, 2000);
 
         return true;
       } else {
-        console.log('Mobile: Target section not found, using enhanced mobile fallback scroll');
+        console.log('Target section not found, using enhanced fallback scroll');
         
-        // Enhanced mobile fallback with viewport awareness
+        // Enhanced fallback with viewport awareness
         const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
-        let fallbackPosition = window.innerHeight * (isMobileDevice() ? 0.5 : 0.7);
+        let fallbackPosition = window.innerHeight * (isMobileDevice() ? 0.6 : 0.8);
         
         if (searchContext) {
           try {
             const searchCtx: SearchContext = JSON.parse(searchContext);
-            if (searchCtx.lastScrollY && searchCtx.lastScrollY > 100) {
-              const maxFallback = window.innerHeight * (isMobileDevice() ? 1.0 : 1.2);
+            if (searchCtx.lastScrollY && searchCtx.lastScrollY > 200) {
+              const maxFallback = window.innerHeight * (isMobileDevice() ? 1.2 : 1.5);
               fallbackPosition = Math.min(searchCtx.lastScrollY, maxFallback);
             }
           } catch (error) {
-            // Use default mobile fallback
+            // Use default fallback
           }
         }
         
@@ -413,27 +386,20 @@ export const useScrollRestoration = (key?: string) => {
         return true;
       }
     } catch (error) {
-      console.error('Error in mobile context-aware scroll:', error);
+      console.error('Error in context-aware scroll:', error);
       isRestoringRef.current = false;
       return false;
     }
   }, [scrollKey, location.state, findTargetSection, location.pathname]);
 
-  // Enhanced mobile restore scroll position
+  // Enhanced restore scroll position
   const restoreScrollPosition = useCallback(async () => {
     if (typeof window === 'undefined') return;
 
-    const navigationContext = `${location.pathname}-${location.state?.fromDetailPage}-${location.state?.type}-${detectNavigationMethod()}-${Date.now()}`;
+    const navigationContext = `${location.pathname}-${location.state?.fromDetailPage}-${location.state?.type}-${detectNavigationMethod()}`;
     
-    if (lastNavigationRef.current !== navigationContext) {
-      console.log('New mobile navigation context detected, resetting state');
-      hasRestoredRef.current = false;
-      isRestoringRef.current = false;
-      lastNavigationRef.current = navigationContext;
-    }
-
     if (hasRestoredRef.current || isRestoringRef.current) {
-      console.log('Mobile scroll restoration already completed or in progress');
+      console.log('Scroll restoration already completed or in progress');
       return;
     }
 
@@ -443,48 +409,69 @@ export const useScrollRestoration = (key?: string) => {
     
     const savedPosition: ScrollPosition = scrollPositions[scrollKey];
     
-    console.log('=== MOBILE SCROLL RESTORATION DEBUG ===');
-    console.log('Mobile navigation context:', navigationContext);
+    console.log('=== ENHANCED SCROLL RESTORATION DEBUG ===');
+    console.log('Navigation context:', navigationContext);
     console.log('Saved position:', savedPosition);
     console.log('Navigation state:', location.state);
     console.log('Navigation method:', detectNavigationMethod());
     
-    // Enhanced mobile context-aware scroll detection
+    // Enhanced context-aware scroll detection
     const isFromDetailPageOrBack = location.state?.fromDetailPage || 
                                   detectNavigationMethod() === 'touch-gesture' || 
                                   detectNavigationMethod() === 'browser-back';
     
     if (isFromDetailPageOrBack && location.state?.preserveState) {
-      console.log('Mobile: Coming from detail page or back navigation - using enhanced context-aware scroll');
+      console.log('Coming from detail page or back navigation - using enhanced context-aware scroll');
       const scrolled = await performContextAwareScroll();
       if (scrolled) {
-        console.log('Mobile context-aware scroll successful');
+        console.log('Context-aware scroll successful');
         return;
       }
     }
     
+    // Always try context-aware scroll if we have valid context
+    const searchContext = sessionStorage.getItem(SEARCH_CONTEXT_KEY);
+    if (searchContext) {
+      try {
+        const searchCtx: SearchContext = JSON.parse(searchContext);
+        const contextTimeout = getContextTimeout();
+        const isContextValid = Date.now() - searchCtx.timestamp < contextTimeout;
+        
+        if (isContextValid && searchCtx.scrollAttempts < MAX_SCROLL_ATTEMPTS) {
+          console.log('Valid search context found, attempting context-aware scroll');
+          const scrolled = await performContextAwareScroll();
+          if (scrolled) {
+            console.log('Context-aware scroll successful');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking search context:', error);
+      }
+    }
+    
     if (savedPosition && savedPosition.y > 100 && !savedPosition.isAtBottom) {
-      console.log('Mobile: Using saved scroll position:', savedPosition);
+      console.log('Using saved scroll position:', savedPosition);
       
       isRestoringRef.current = true;
       hasRestoredRef.current = true;
       
-      const restoreDelay = getScrollDelay() + 150; // Extra delay for mobile
+      const restoreDelay = getScrollDelay() + 100;
       await new Promise(resolve => setTimeout(resolve, restoreDelay));
       
       window.scrollTo({
         left: savedPosition.x,
         top: savedPosition.y,
-        behavior: 'auto' // Auto for better mobile performance
+        behavior: 'auto'
       });
       
-      // Mobile-optimized scroll verification
+      // Scroll verification with higher tolerance for mobile
       setTimeout(() => {
         const actualY = window.scrollY;
-        const tolerance = isMobileDevice() ? 200 : 150; // Higher tolerance for mobile
+        const tolerance = isMobileDevice() ? 300 : 200;
         
         if (Math.abs(actualY - savedPosition.y) > tolerance) {
-          console.log('Mobile scroll verification failed, retrying...');
+          console.log('Scroll verification failed, retrying...');
           window.scrollTo({
             left: savedPosition.x,
             top: savedPosition.y,
@@ -493,14 +480,14 @@ export const useScrollRestoration = (key?: string) => {
         }
         
         isRestoringRef.current = false;
-      }, isMobileDevice() ? 800 : 500);
+      }, isMobileDevice() ? 1000 : 600);
     } else {
-      console.log('Mobile: No meaningful saved position, trying enhanced context-aware scroll');
+      console.log('No meaningful saved position, trying context-aware scroll as fallback');
       await performContextAwareScroll(true);
     }
   }, [scrollKey, performContextAwareScroll, location.state, location.pathname]);
 
-  // Enhanced mobile scroll events handling
+  // Enhanced scroll events handling
   useEffect(() => {
     const handleScroll = () => {
       if (isRestoringRef.current) return;
@@ -510,7 +497,7 @@ export const useScrollRestoration = (key?: string) => {
       }
       
       // Mobile-optimized debounce timing
-      const debounceTime = isMobileDevice() ? 300 : 200;
+      const debounceTime = isMobileDevice() ? 400 : 300;
       saveTimeoutRef.current = setTimeout(saveScrollPosition, debounceTime);
     };
 
@@ -522,26 +509,25 @@ export const useScrollRestoration = (key?: string) => {
     };
 
     const handlePopState = () => {
-      console.log('Mobile: Enhanced browser back/forward navigation detected');
+      console.log('Enhanced browser back/forward navigation detected');
       
       hasRestoredRef.current = false;
       isRestoringRef.current = false;
-      lastNavigationRef.current = null;
       navigationContextRef.current = null;
       
-      const popstateDelay = isMobileDevice() ? 800 : 500;
+      const popstateDelay = isMobileDevice() ? 1000 : 600;
       setTimeout(async () => {
-        console.log('Mobile: Attempting enhanced popstate scroll restoration');
+        console.log('Attempting enhanced popstate scroll restoration');
         await performContextAwareScroll(true);
       }, popstateDelay);
     };
 
-    // Mobile-optimized event listeners
+    // Enhanced event listeners
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
 
-    // Additional mobile-specific events
+    // Mobile-specific events
     if (isMobileDevice()) {
       const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
@@ -550,7 +536,7 @@ export const useScrollRestoration = (key?: string) => {
             if (!hasRestoredRef.current) {
               performContextAwareScroll(true);
             }
-          }, 300);
+          }, 500);
         }
       };
       
@@ -601,11 +587,9 @@ export const useScrollRestoration = (key?: string) => {
     
     hasRestoredRef.current = false;
     isRestoringRef.current = false;
-    currentContextRef.current = null;
-    lastNavigationRef.current = null;
     navigationContextRef.current = null;
     
-    console.log('Cleared mobile scroll position for:', keyToClear || scrollKey);
+    console.log('Cleared scroll position for:', keyToClear || scrollKey);
   }, [scrollKey]);
 
   return { clearScrollPosition, storeSearchContext };
