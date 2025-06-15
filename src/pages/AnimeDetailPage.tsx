@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -9,88 +10,57 @@ import { fetchAnimeDetailAniList } from '../services/details';
 import { convertAniListAnimeDetailToJikan } from '../utils/detailConverter';
 
 const fetchAnimeDetails = async (id: string, expectedTitle?: string) => {
-  try {
-    // First try AniList (primary source) with title validation
-    console.log('Fetching anime details from AniList for ID:', id, 'Expected title:', expectedTitle);
-    const anilistData = await fetchAnimeDetailAniList(id, expectedTitle);
-    return { data: convertAniListAnimeDetailToJikan(anilistData), source: 'anilist' };
-  } catch (anilistError) {
-    console.log('AniList failed, trying Jikan API:', anilistError);
-    
-    // Fallback to Jikan API
-    try {
-      const response = await fetch(`https://api.jikan.moe/v4/anime/${id}/full`);
-      if (response.ok) {
-        const jikanData = await response.json();
-        
-        // Validate title if provided
-        if (expectedTitle && jikanData.data?.title) {
-          const fetchedTitle = jikanData.data.title;
-          console.log('Jikan API title validation - Expected:', expectedTitle, 'Got:', fetchedTitle);
-        }
-        
-        return { data: jikanData.data, source: 'jikan' };
-      }
-    } catch (jikanError) {
-      console.log('Jikan API also failed:', jikanError);
-    }
-
-    // Final attempt with search
-    try {
-      const searchResponse = await fetch(`https://api.jikan.moe/v4/anime?q=${id}&limit=1`);
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        if (searchData.data && searchData.data.length > 0) {
-          const animeId = searchData.data[0].mal_id;
-          const detailResponse = await fetch(`https://api.jikan.moe/v4/anime/${animeId}/full`);
-          if (detailResponse.ok) {
-            const detailData = await detailResponse.json();
-            return { data: detailData.data, source: 'jikan-search' };
-          }
-        }
-      }
-    } catch (searchError) {
-      console.log('Search fallback failed:', searchError);
-    }
-
-    throw new Error('Failed to fetch anime details from all sources');
-  }
+  console.log('Fetching anime details from AniList for ID:', id, 'Expected title:', expectedTitle);
+  const anilistData = await fetchAnimeDetailAniList(id, expectedTitle);
+  return { data: convertAniListAnimeDetailToJikan(anilistData), source: 'anilist' };
 };
 
-const fetchAnimePictures = async (animeData: any, expectedTitle?: string) => {
-  // Only fetch pictures if we have a valid MAL ID
-  if (!animeData?.mal_id) {
-    console.log('No MAL ID available for pictures');
-    return { data: [] };
+const fetchAnimeImages = async (animeData: any, expectedTitle?: string) => {
+  const images = [];
+  
+  // Add AniList images if available
+  if (animeData?.images?.jpg?.large_image_url) {
+    images.push({
+      jpg: {
+        image_url: animeData.images.jpg.large_image_url,
+        large_image_url: animeData.images.jpg.large_image_url
+      }
+    });
   }
 
-  // If we have an expected title, validate it matches before fetching pictures
-  if (expectedTitle && animeData.title) {
-    const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
-    const expectedNormalized = normalizeTitle(expectedTitle);
-    const actualNormalized = normalizeTitle(animeData.title);
-    
-    if (!actualNormalized.includes(expectedNormalized) && !expectedNormalized.includes(actualNormalized)) {
-      console.log(`Title mismatch for pictures - Expected: ${expectedTitle}, Got: ${animeData.title}. Skipping picture fetch.`);
-      return { data: [] };
+  // Fetch Jikan pictures if we have a valid MAL ID
+  if (animeData?.mal_id) {
+    // Title validation if provided
+    if (expectedTitle && animeData.title) {
+      const normalizeTitle = (title: string) => title.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+      const expectedNormalized = normalizeTitle(expectedTitle);
+      const actualNormalized = normalizeTitle(animeData.title);
+      
+      if (!actualNormalized.includes(expectedNormalized) && !expectedNormalized.includes(actualNormalized)) {
+        console.log(`Title mismatch for pictures - Expected: ${expectedTitle}, Got: ${animeData.title}. Using only AniList images.`);
+        return { data: images };
+      }
     }
-  }
 
-  try {
-    console.log('Fetching pictures for MAL ID:', animeData.mal_id, 'Title:', animeData.title);
-    const response = await fetch(`https://api.jikan.moe/v4/anime/${animeData.mal_id}/pictures`);
-    if (response.ok) {
-      const picturesData = await response.json();
-      console.log('Successfully fetched', picturesData.data?.length || 0, 'pictures for', animeData.title);
-      return picturesData;
-    } else {
-      console.log('Failed to fetch pictures, status:', response.status);
+    try {
+      console.log('Fetching Jikan pictures for MAL ID:', animeData.mal_id, 'Title:', animeData.title);
+      const response = await fetch(`https://api.jikan.moe/v4/anime/${animeData.mal_id}/pictures`);
+      if (response.ok) {
+        const picturesData = await response.json();
+        if (picturesData.data && picturesData.data.length > 0) {
+          console.log('Successfully fetched', picturesData.data.length, 'Jikan pictures for', animeData.title);
+          images.push(...picturesData.data);
+        }
+      } else {
+        console.log('Failed to fetch Jikan pictures, status:', response.status);
+      }
+    } catch (error) {
+      console.log('Failed to fetch Jikan pictures:', error);
     }
-  } catch (error) {
-    console.log('Failed to fetch pictures:', error);
   }
   
-  return { data: [] };
+  console.log('Total images found:', images.length);
+  return { data: images };
 };
 
 const AnimeDetailPage = () => {
@@ -108,10 +78,10 @@ const AnimeDetailPage = () => {
     retry: 2,
   });
 
-  const { data: picturesData, isLoading: picturesLoading } = useQuery({
-    queryKey: ['anime-pictures', animeData?.data?.mal_id, animeData?.data?.title, expectedTitle],
-    queryFn: () => fetchAnimePictures(animeData?.data, expectedTitle),
-    enabled: !!animeData?.data && !!animeData?.data?.mal_id,
+  const { data: imagesData, isLoading: imagesLoading } = useQuery({
+    queryKey: ['anime-images', animeData?.data?.mal_id, animeData?.data?.title, expectedTitle],
+    queryFn: () => fetchAnimeImages(animeData?.data, expectedTitle),
+    enabled: !!animeData?.data,
     retry: 1,
   });
 
@@ -160,11 +130,11 @@ const AnimeDetailPage = () => {
   }
 
   const anime = animeData.data;
-  const pictures = picturesData?.data || [];
+  const images = imagesData?.data || [];
 
   console.log('Anime data source:', animeData.source);
   console.log('Final anime title:', anime.title);
-  console.log('Pictures count:', pictures.length);
+  console.log('Images count:', images.length);
 
   return (
     <div className="min-h-screen bg-background">
@@ -212,8 +182,8 @@ const AnimeDetailPage = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-8 py-6 sm:py-8 md:py-12 space-y-6 sm:space-y-8 md:space-y-12">
-        {!picturesLoading && (
-          <ImageGallery images={pictures} title={anime.title} />
+        {!imagesLoading && (
+          <ImageGallery images={images} title={anime.title} />
         )}
 
         <DetailedInfo data={anime} type="anime" />
