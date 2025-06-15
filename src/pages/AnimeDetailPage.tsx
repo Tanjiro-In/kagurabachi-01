@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -69,8 +68,6 @@ const AnimeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  useScrollRestoration(`anime-detail-${id}`);
-
   const { data: animeData, isLoading: animeLoading, error: animeError } = useQuery({
     queryKey: ['anime-details', id],
     queryFn: () => fetchAnimeDetails(id!),

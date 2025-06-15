@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -6,7 +5,6 @@ import { ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ImageGallery from '../components/ImageGallery';
 import DetailedInfo from '../components/DetailedInfo';
-import { useScrollRestoration } from '../hooks/useScrollRestoration';
 import { fetchMangaDetailAniList } from '../services/anilistApi';
 import { convertAniListMangaDetailToJikan } from '../utils/detailConverter';
 
@@ -68,8 +66,6 @@ const fetchMangaPictures = async (id: string) => {
 const MangaDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
-  useScrollRestoration(`manga-detail-${id}`);
 
   const { data: mangaData, isLoading: mangaLoading, error: mangaError } = useQuery({
     queryKey: ['manga-details', id],
