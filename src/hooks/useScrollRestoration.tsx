@@ -1,11 +1,18 @@
+
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+
+// Constants for scroll restoration
+const SCROLL_RESTORATION_KEY = 'scroll_positions';
+const SEARCH_CONTEXT_KEY = 'search_context';
+const CONTEXT_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const MAX_SCROLL_ATTEMPTS = 3;
 
 interface ScrollPosition {
   x: number;
   y: number;
   timestamp: number;
-  isAtBottom?: boolean; // Add the missing property
+  isAtBottom?: boolean;
 }
 
 interface SearchContext {
@@ -17,8 +24,6 @@ interface SearchContext {
   lastScrollY?: number;
   contextPreserved?: boolean;
 }
-
-// ... keep existing code (constants and hook definition)
 
 export const useScrollRestoration = (key?: string) => {
   const location = useLocation();
@@ -64,7 +69,7 @@ export const useScrollRestoration = (key?: string) => {
       x: window.scrollX,
       y: currentY,
       timestamp: Date.now(),
-      isAtBottom // Track if user was at bottom
+      isAtBottom
     };
     
     // Enhanced context preservation for detail pages
